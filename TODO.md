@@ -19,11 +19,11 @@
 - [x] `StringRedisSerializer` (Key), `GenericJackson2JsonRedisSerializer` (Value) 설정
 - [x] **검증**: RedisTemplate 빈 주입 여부 테스트
 
-## [ ] 태스크 4: JPA 도메인 및 DTO 구현 (Strings 기반)
-- [ ] `Product` JPA 엔티티 생성 (ID, 이름, 가격 등)
-- [ ] `ProductDto` 생성 (엔티티 주입 생성자 포함, 불변 객체)
-- [ ] `ProductRepository` 인터페이스 작성
-- [ ] **검증**: JPA를 통한 H2 데이터 저장 및 조회 테스트
+## [x] 태스크 4: JPA 도메인 및 DTO 구현 (Strings 기반)
+- [x] `Product` JPA 엔티티 생성 (ID, 이름, 가격 등)
+- [x] `ProductDto` 생성 (엔티티 주입 생성자 포함, 불변 객체)
+- [x] `ProductRepository` 인터페이스 작성
+- [x] **검증**: JPA를 통한 H2 데이터 저장 및 조회 테스트
 
 ## [ ] 태스크 5: 캐싱 서비스 구현 및 TTL 적용
 - [ ] `ProductService` 구현 (조회 시 Redis 확인 후 없으면 DB 조회 및 캐싱)
