@@ -25,13 +25,13 @@
 - [x] `ProductRepository` 인터페이스 작성
 - [x] **검증**: JPA를 통한 H2 데이터 저장 및 조회 테스트
 
-## [ ] 태스크 5: 캐싱 서비스 구현 및 TTL 적용
-- [ ] `ProductService` 구현 (조회 시 Redis 확인 후 없으면 DB 조회 및 캐싱)
-- [ ] 캐시 데이터 저장 시 60초 TTL 설정 적용
-- [ ] **검증**: `Strings` 타입으로 데이터가 JSON 형태로 Redis에 저장되는지 확인
+## [x] 태스크 5: 캐싱 서비스 구현 및 TTL 적용
+- [x] `ProductService` 구현 (조회 시 Redis 확인 후 없으면 DB 조회 및 캐싱)
+- [x] 캐시 데이터 저장 시 60초 TTL 설정 적용
+- [x] **검증**: `Strings` 타입으로 데이터가 JSON 형태로 Redis에 저장되는지 확인
 
-## [ ] 태스크 6: Web UI 통합 및 최종 리포트
-- [ ] `ProductController` 작성 (상품 목록 뷰)
-- [ ] `product-list.mustache` 작성 (캐싱 여부 표시 필드 포함)
-- [ ] 전체 흐름(DB -> Cache -> View) 검증 테스트 코드 작성
-- [ ] `.person/reports` 폴더에 작업 리포트 작성
+## [x] 태스크 6: Web UI 통합 및 최종 리포트
+- [x] `ProductController` 작성 (상품 목록 뷰)
+- [x] `product-list.mustache` 작성 (캐싱 여부 표시 필드 포함)
+- [x] 전체 흐름(DB -> Cache -> View) 검증 테스트 코드 작성
+- [x] `.person/reports` 폴더에 작업 리포트 작성

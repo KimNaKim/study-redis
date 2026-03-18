@@ -4,9 +4,9 @@
 
 ## Phase 1: Redis 기초 & Strings (Caching)
 - [x] Redis 기본 설정 (RedisTemplate, Serializer 및 모니터링 대시보드 구축)
-- [ ] JPA & H2 DB 통합 (Persistence 계층 구성)
-- [ ] Strings 데이터 구조 활용 (단순 캐싱 구현)
-- [ ] TTL(Time To Live) 설정 및 만료 메커니즘 이해
-- [ ] Mustache를 이용한 캐싱 여부 시각화 (Web UI)
+- [x] JPA & H2 DB 통합 (Persistence 계층 구성)
+- [x] Strings 데이터 구조 활용 (단순 캐싱 구현)
+- [x] TTL(Time To Live) 설정 및 만료 메커니즘 이해
+- [x] Mustache를 이용한 캐싱 여부 시각화 (Web UI)
 
 ... (이하 생략)

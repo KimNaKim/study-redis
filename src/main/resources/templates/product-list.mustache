@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Redis Caching Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        .status-terminal { background: #2d2d2d; color: #00ff00; padding: 15px; border-radius: 5px; font-family: monospace; height: 150px; overflow-y: auto; margin-top: 20px; }
+        .progress { height: 5px; display: none; margin-bottom: 10px; }
+        .source-badge { font-weight: bold; padding: 2px 8px; border-radius: 4px; }
+        .hit { background-color: #d1e7dd; color: #0f5132; }
+        .miss { background-color: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body class="bg-light">
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>📦 Product List (Caching Demo)</h2>
+        <a href="/" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-7">
+            <table class="table table-hover bg-white shadow-sm rounded">
+                <thead class="table-dark">
+                    <tr><th>ID</th><th>Name</th><th>Price</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                    {{#products}}
+                    <tr>
+                        <td>{{id}}</td>
+                        <td>{{name}}</td>
+                        <td>{{price}}</td>
+                        <td><button class="btn btn-sm btn-primary" onclick="fetchDetail({{id}})">Fetch Detail</button></td>
+                    </tr>
+                    {{/products}}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="col-md-5">
+            <div id="detail-card" class="card shadow-sm mb-3" style="display: none;">
+                <div class="card-body">
+                    <h5 class="card-title" id="p-name"></h5>
+                    <p class="card-text text-muted" id="p-desc"></p>
+                    <hr>
+                    <div id="loading-bar" class="progress"><div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div></div>
+                    <p>Source: <span id="p-source" class="source-badge"></span></p>
+                    <p>Execution Time: <span id="p-time" class="fw-bold"></span> ms</p>
+                </div>
+            </div>
+
+            <div class="status-terminal" id="terminal">
+                <div>> Ready for requests...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function log(msg) {
+        const term = document.getElementById('terminal');
+        const timestamp = new Date().toLocaleTimeString();
+        term.innerHTML += `<div><small class="text-secondary">[${timestamp}]</small> > ${msg}</div>`;
+        term.scrollTop = term.scrollHeight;
+    }
+
+    async function fetchDetail(id) {
+        const detailCard = document.getElementById('detail-card');
+        const loadingBar = document.getElementById('loading-bar');
+        
+        detailCard.style.display = 'block';
+        loadingBar.style.display = 'block';
+        
+        log(`<strong>Requesting Product ID: ${id}</strong>`);
+        log(`Step 1: Checking Redis Cache...`);
+
+        try {
+            const response = await fetch(`/api/products/${id}`);
+            const result = await response.json();
+            
+            loadingBar.style.display = 'none';
+            document.getElementById('p-name').innerText = result.data.name;
+            document.getElementById('p-desc').innerText = result.data.description;
+            
+            const sourceEl = document.getElementById('p-source');
+            sourceEl.innerText = result.source;
+            sourceEl.className = 'source-badge ' + (result.source === 'CACHE' ? 'hit' : 'miss');
+            
+            document.getElementById('p-time').innerText = result.elapsedMillis;
+
+            if (result.source === 'CACHE') {
+                log(`<span class="text-success fw-bold">CACHE HIT!</span> Data retrieved from Redis in ${result.elapsedMillis}ms.`);
+            } else {
+                log(`<span class="text-warning fw-bold">CACHE MISS!</span> Accessing H2 Database...`);
+                log(`Step 2: Database lookup complete.`);
+                log(`Step 3: Updating Redis cache for next time.`);
+                log(`Total time: ${result.elapsedMillis}ms.`);
+            }
+
+        } catch (err) {
+            log(`<span class="text-danger">Error: ${err.message}</span>`);
+        }
+    }
+</script>
+</body>
+</html>
