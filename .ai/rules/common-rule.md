@@ -20,18 +20,6 @@
 ## 3. DTO 및 엔티티 설계 원칙
 - **불변성 유지**: DTO는 `@Getter`만 사용하며, `Setter` 사용을 엄격히 금지한다.
 - **엔티티 주입 생성자**: DTO는 해당 데이터를 담고 있는 JPA 엔티티를 파라미터로 받는 생성자를 반드시 가져야 한다.
-    ```java
-    public class UserDto {
-        private final String id;
-        private final String name;
-
-        // JPA 엔티티를 직접 주입받는 생성자
-        public UserDto(UserEntity entity) {
-            this.id = entity.getId();
-            this.name = entity.getName();
-        }
-    }
-    ```
 - **Lombok 활용**: `@Builder`, `@NoArgsConstructor(access = AccessLevel.PROTECTED)`, `@AllArgsConstructor` 등을 적절히 활용한다.
 
 ## 4. 패키지 구조
@@ -46,3 +34,6 @@
 - Redis 서버와 H2 DB가 구동 중인 환경에서 실제 데이터 흐름을 검증한다.
 - TTL(Time To Live) 설정이 의도대로 동작하는지 확인하는 테스트 케이스를 포함한다.
 
+## 6. 데이터베이스 초기화 (Database Initialization)
+- **더미 데이터 관리**: 개발 및 테스트용 초기 데이터는 Java 코드(`CommandLineRunner` 등) 대신 `src/main/resources/data.sql` 파일을 통해 관리한다.
+- **실행 시점 제어**: Hibernate의 DDL 자동 생성 기능과 함께 사용할 경우, `spring.jpa.defer-datasource-initialization=true` 설정을 반드시 포함하여 테이블 생성 후 SQL이 실행되도록 보장한다.
