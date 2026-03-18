@@ -13,11 +13,11 @@
 - [x] `MonitoringController` 및 `index.mustache` 작성 (Redis 연결 상태 시각화: Green/Red 표시)
 - [x] **검증**: 메인 화면(`/`)에서 Redis 연결 상태 "정상(UP)" 확인
 
-## [ ] 태스크 3: Redis 설정 및 직렬화 구현
-- [ ] `com.example.redis_sampling.config.RedisConfig` 작성
-- [ ] `RedisTemplate<String, Object>` 빈 등록
-- [ ] `StringRedisSerializer` (Key), `GenericJackson2JsonRedisSerializer` (Value) 설정
-- [ ] **검증**: RedisTemplate 빈 주입 여부 테스트
+## [x] 태스크 3: Redis 설정 및 직렬화 구현
+- [x] `com.example.redis_sampling.config.RedisConfig` 작성
+- [x] `RedisTemplate<String, Object>` 빈 등록
+- [x] `StringRedisSerializer` (Key), `GenericJackson2JsonRedisSerializer` (Value) 설정
+- [x] **검증**: RedisTemplate 빈 주입 여부 테스트
 
 ## [ ] 태스크 4: JPA 도메인 및 DTO 구현 (Strings 기반)
 - [ ] `Product` JPA 엔티티 생성 (ID, 이름, 가격 등)
