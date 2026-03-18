@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redis Sampling Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .status-badge { width: 20px; height: 20px; border-radius: 50%; display: inline-block; margin-right: 12px; vertical-align: middle; }
+        .bg-up { background-color: #28a745; box-shadow: 0 0 10px #28a745; }
+        .bg-down { background-color: #dc3545; box-shadow: 0 0 10px #dc3545; }
+        .card { border-radius: 15px; overflow: hidden; }
+        .card-header { border-bottom: none; }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-7">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-dark text-white text-center py-4">
+                        <h2 class="mb-0">Redis Sampling Labs</h2>
+                        <p class="text-white-50 mb-0">Phase 1: Basic & Caching Infrastructure</p>
+                    </div>
+                    <div class="card-body p-5">
+                        <div class="text-center mb-5">
+                            <h4 class="fw-bold text-secondary">System Monitoring</h4>
+                            <p class="text-muted">실시간으로 Redis 인프라의 가동 상태를 확인합니다.</p>
+                        </div>
+
+                        <!-- Redis Status Section -->
+                        <div class="p-4 rounded-4 bg-white border {{#isRedisUp}}border-success{{/isRedisUp}}{{^isRedisUp}}border-danger{{/isRedisUp}} shadow-sm mb-4">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center">
+                                    <span class="status-badge {{#isRedisUp}}bg-up{{/isRedisUp}}{{^isRedisUp}}bg-down{{/isRedisUp}}"></span>
+                                    <div>
+                                        <h5 class="mb-0 fw-bold {{#isRedisUp}}text-success{{/isRedisUp}}{{^isRedisUp}}text-danger{{/isRedisUp}}">
+                                            Redis Engine Status
+                                        </h5>
+                                        <small class="text-muted">Component: health.redis</small>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge {{#isRedisUp}}bg-success{{/isRedisUp}}{{^isRedisUp}}bg-danger{{/isRedisUp}} fs-6 px-3">
+                                        {{redisStatus}}
+                                    }</span>
+                                </div>
+                            </div>
+                            <hr class="my-3 opacity-10">
+                            <p class="mb-0 {{#isRedisUp}}text-dark{{/isRedisUp}}{{^isRedisUp}}text-danger fw-bold{{/isRedisUp}}">
+                                {{#isRedisUp}}
+                                    ✅ 로컬 또는 컨테이너에서 구동 중인 Redis 서버에 성공적으로 연결되었습니다.
+                                {{/isRedisUp}}
+                                {{^isRedisUp}}
+                                    ❌ Redis 서버와의 연결이 끊겼습니다. `redis-server` 구동 여부를 확인해주세요.
+                                {{/isRedisUp}}
+                            </p>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <a href="/" class="btn btn-outline-dark btn-lg py-3">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh Status
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white text-center py-3 border-top-0">
+                        <small class="text-muted">Developer Session: {{git_user_name}}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
