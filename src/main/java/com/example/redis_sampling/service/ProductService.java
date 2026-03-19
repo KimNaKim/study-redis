@@ -29,55 +29,6 @@ public class ProductService {
     private static final String PRODUCT_HASH_KEY_PREFIX = "redis-sampling:product:hash:";
 
     /**
-     * [Phase 2] Strings vs Hashes 성능 및 구조 벤치마크 (Step 4.1 ~ 4.2)
-     */
-    public Map<String, Object> runBenchmark(Long id) {
-        String stringKey = PRODUCT_CACHE_KEY_PREFIX + id;
-        String hashKey = PRODUCT_HASH_KEY_PREFIX + id;
-
-        // 사전 준비: 두 캐시에 데이터가 존재하도록 강제 생성
-        getProductWithCaching(id);
-        getProductFromHash(id);
-
-        Map<String, Object> result = new HashMap<>();
-        int iterations = 1000;
-
-        // 1. Strings 방식 벤치마크 (1,000회 반복: GET -> New DTO -> SET)
-        long stringStart = System.currentTimeMillis();
-        for (int i = 0; i < iterations; i++) {
-            ProductDto cached = (ProductDto) redisTemplate.opsForValue().get(stringKey);
-            if (cached != null) {
-                // 불변 DTO이므로 새로 생성 (가장 흔한 패턴)
-                ProductDto updated = new ProductDto(cached.getId(), cached.getName(), 
-                                                 1000.0 + i, cached.getDescription(), cached.getStock());
-                redisTemplate.opsForValue().set(stringKey, updated, Duration.ofSeconds(60));
-            }
-        }
-        long stringEnd = System.currentTimeMillis();
-        result.put("stringsTimeMillis", stringEnd - stringStart);
-
-        // 2. Hashes 방식 벤치마크 (1,000회 반복: HSET price)
-        long hashStart = System.currentTimeMillis();
-        for (int i = 0; i < iterations; i++) {
-            redisTemplate.opsForHash().put(hashKey, "price", 1000.0 + i);
-        }
-        long hashEnd = System.currentTimeMillis();
-        result.put("hashesTimeMillis", hashEnd - hashStart);
-
-        // 3. 메모리 점유 측정 (Redis MEMORY USAGE 명령어 활용)
-        Long stringMemory = redisTemplate.execute((RedisCallback<Long>) connection -> 
-            connection.keyCommands().memoryUsage(stringKey.getBytes()));
-        Long hashMemory = redisTemplate.execute((RedisCallback<Long>) connection -> 
-            connection.keyCommands().memoryUsage(hashKey.getBytes()));
-
-        result.put("stringsMemoryBytes", stringMemory);
-        result.put("hashesMemoryBytes", hashMemory);
-        result.put("iterations", iterations);
-
-        return result;
-    }
-
-    /**
      * [Phase 2] Hashes 기반 캐싱 조회 (Look-aside)
      */
     @Transactional(readOnly = true)
@@ -142,13 +93,70 @@ public class ProductService {
     }
 
     /**
+     * [Phase 2] 캐시 수동 삭제 (Step 5.2)
+     */
+    public void clearCache(Long id, String type) {
+        String key = type.equals("hash") ? PRODUCT_HASH_KEY_PREFIX + id : PRODUCT_CACHE_KEY_PREFIX + id;
+        log.info("Clearing Cache - Type: {}, Key: {}", type, key);
+        redisTemplate.delete(key);
+    }
+
+    /**
+     * [Phase 2] 성능 벤치마크 (Step 4.1 ~ 4.2)
+     */
+    public Map<String, Object> runBenchmark(Long id) {
+        String stringKey = PRODUCT_CACHE_KEY_PREFIX + id;
+        String hashKey = PRODUCT_HASH_KEY_PREFIX + id;
+
+        getProductWithCaching(id);
+        getProductFromHash(id);
+
+        Map<String, Object> result = new HashMap<>();
+        int iterations = 1000;
+
+        long stringStart = System.currentTimeMillis();
+        for (int i = 0; i < iterations; i++) {
+            ProductDto cached = (ProductDto) redisTemplate.opsForValue().get(stringKey);
+            if (cached != null) {
+                ProductDto updated = new ProductDto(cached.getId(), cached.getName(), 
+                                                 1000.0 + i, cached.getDescription(), cached.getStock());
+                redisTemplate.opsForValue().set(stringKey, updated, Duration.ofSeconds(60));
+            }
+        }
+        long stringEnd = System.currentTimeMillis();
+        result.put("stringsTimeMillis", stringEnd - stringStart);
+
+        long hashStart = System.currentTimeMillis();
+        for (int i = 0; i < iterations; i++) {
+            redisTemplate.opsForHash().put(hashKey, "price", 1000.0 + i);
+        }
+        long hashEnd = System.currentTimeMillis();
+        result.put("hashesTimeMillis", hashEnd - hashStart);
+
+        Long stringMemory = 0L;
+        Long hashMemory = 0L;
+        try {
+            stringMemory = redisTemplate.execute((RedisCallback<Long>) connection -> 
+                (Long) connection.execute("MEMORY", "USAGE".getBytes(), stringKey.getBytes()));
+            hashMemory = redisTemplate.execute((RedisCallback<Long>) connection -> 
+                (Long) connection.execute("MEMORY", "USAGE".getBytes(), hashKey.getBytes()));
+        } catch (Exception e) {
+            log.warn("MEMORY USAGE failed: {}", e.getMessage());
+        }
+
+        result.put("stringsMemoryBytes", stringMemory != null ? stringMemory : 0L);
+        result.put("hashesMemoryBytes", hashMemory != null ? hashMemory : 0L);
+        result.put("iterations", iterations);
+
+        return result;
+    }
+
+    /**
      * Hashes 구조로 저장하는 공통 로직
      */
     private void saveProductAsHash(ProductDto dto) {
         String hashKey = PRODUCT_HASH_KEY_PREFIX + dto.getId();
         Map<String, Object> productMap = objectMapper.convertValue(dto, Map.class);
-        
-        log.info("Saving Product as Hash - Key: {}", hashKey);
         redisTemplate.opsForHash().putAll(hashKey, productMap);
         redisTemplate.expire(hashKey, Duration.ofSeconds(60));
     }

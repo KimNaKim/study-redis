@@ -10,10 +10,10 @@
 - [x] Mustache를 이용한 캐싱 여부 시각화 (Web UI)
 
 ## Phase 2: Hashes (객체 필드 기반 관리)
-- [ ] Redis Hashes 데이터 구조 이해 및 `HashOperations` 활용
-- [ ] 객체 전체가 아닌 특정 필드(예: 상품 가격, 재고)만 업데이트하는 로직 구현
-- [ ] Strings 캐싱과 Hashes 캐싱의 성능 및 메모리 사용량 비교
-- [ ] **UI**: 특정 필드 수정 기능 추가 및 실시간 반영 확인
+- [x] Redis Hashes 데이터 구조 이해 및 `HashOperations` 활용
+- [x] 객체 전체가 아닌 특정 필드(예: 상품 가격, 재고)만 업데이트하는 로직 구현
+- [x] Strings 캐싱과 Hashes 캐싱의 성능 및 메모리 사용량 비교
+- [x] **UI**: 특정 필드 수정 기능 추가 및 실시간 반영 확인
 
 ## Phase 3: Lists & Sets (컬렉션 활용)
 - [ ] Lists를 활용한 '최근 조회한 상품' (Fixed-size Queue) 구현

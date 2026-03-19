@@ -3,106 +3,139 @@
 <head>
     <title>Redis Caching Dashboard</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <style>
-        .status-terminal { background: #2d2d2d; color: #00ff00; padding: 15px; border-radius: 5px; font-family: monospace; height: 350px; overflow-y: auto; margin-top: 20px; }
-        .progress { height: 5px; display: none; margin-bottom: 10px; }
-        .source-badge { font-weight: bold; padding: 2px 8px; border-radius: 4px; }
+        .status-terminal { background: #1e1e1e; color: #00d000; padding: 15px; border-radius: 8px; font-family: 'Consolas', monospace; height: 350px; overflow-y: auto; margin-top: 20px; border: 2px solid #333; }
+        .progress { height: 6px; display: none; margin-bottom: 12px; }
+        .source-badge { font-weight: bold; padding: 3px 10px; border-radius: 6px; font-size: 0.8rem; }
         .hit { background-color: #d1e7dd; color: #0f5132; }
         .hit-hash { background-color: #cfe2ff; color: #084298; }
         .miss { background-color: #fff3cd; color: #856404; }
-        .benchmark-table { font-size: 0.9rem; }
+        .benchmark-table { font-size: 0.85rem; background: white; }
+        .phase-header { border-left: 5px solid #0d6efd; padding-left: 10px; margin: 20px 0 15px 0; color: #333; }
+        .flash-update { animation: flash 1.5s; }
+        @keyframes flash { 0% { background-color: #fff3cd; } 100% { background-color: transparent; } }
+        .card-custom { border-radius: 12px; border: none; transition: 0.3s; }
+        .card-custom:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body class="bg-light">
-<div class="container py-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>📦 Product Management (Hashes Partial Update)</h2>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+        <h2 class="fw-bold"><i class="bi bi-box-seam me-2 text-primary"></i>Redis Sampling Lab</h2>
         <div>
-            <button class="btn btn-dark btn-sm" onclick="runBenchmark(1)">Run Performance Test (1,000 reqs)</button>
-            <a href="/" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+            <button class="btn btn-dark" onclick="runBenchmark(1)"><i class="bi bi-lightning-fill text-warning me-1"></i>Performance Test</button>
+            <a href="/" class="btn btn-outline-secondary ms-2">Dashboard</a>
         </div>
     </div>
     
     <div class="row">
-        <div class="col-md-7">
-            <table class="table table-hover bg-white shadow-sm rounded">
-                <thead class="table-dark">
-                    <tr><th>ID</th><th>Name</th><th>Price</th><th>Stock</th><th>Action</th></tr>
-                </thead>
-                <tbody>
-                    {{#products}}
-                    <tr id="row-{{id}}">
-                        <td>{{id}}</td>
-                        <td>{{name}}</td>
-                        <td><input type="number" class="form-control form-control-sm d-inline-block w-50" id="input-price-{{id}}" value="{{price}}"></td>
-                        <td>{{stock}}</td>
-                        <td>
-                            <div class="btn-group">
-                                <button class="btn btn-sm btn-outline-primary" onclick="fetchDetail({{id}}, 'hash')">Fetch (Hash)</button>
-                                <button class="btn btn-sm btn-warning" onclick="updatePrice({{id}})">Update Price</button>
-                                <button class="btn btn-sm btn-danger" onclick="decreaseStock({{id}})">Buy (1)</button>
-                            </div>
-                        </td>
-                    </tr>
-                    {{/products}}
-                </tbody>
-            </table>
+        <div class="col-lg-8">
+            <h5 class="phase-header fw-bold text-secondary">Phase 1 & 2: Product Management</h5>
+            <div class="card card-custom shadow-sm p-3 mb-4 bg-white">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr><th>ID</th><th>Product Info</th><th>Price Edit</th><th>Stock</th><th class="text-center">Strategy Actions</th></tr>
+                    </thead>
+                    <tbody>
+                        {{#products}}
+                        <tr id="row-{{id}}">
+                            <td class="fw-bold">{{id}}</td>
+                            <td>
+                                <div class="fw-bold">{{name}}</div>
+                                <small class="text-muted">JPA/H2 Resource</small>
+                            </td>
+                            <td>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="input-price-{{id}}" value="{{price}}" style="width: 80px;">
+                                    <button class="btn btn-outline-warning" onclick="updatePrice({{id}})" title="HSET"><i class="bi bi-pencil"></i></button>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-dark border fw-bold" id="stock-val-{{id}}">{{stock}}</span>
+                                <button class="btn btn-sm btn-link text-danger p-0 ms-1" onclick="decreaseStock({{id}})" title="HINCRBY"><i class="bi bi-cart-plus-fill fs-5"></i></button>
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="fetchDetail({{id}}, 'string')">Strings</button>
+                                    <button class="btn btn-sm btn-primary" onclick="fetchDetail({{id}}, 'hash')">Hashes</button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="clearCache({{id}}, 'hash')" title="Clear Hash"><i class="bi bi-trash"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+                        {{/products}}
+                    </tbody>
+                </table>
+            </div>
 
-            <!-- 벤치마크 결과 영역 -->
-            <div id="benchmark-result" class="card shadow-sm mt-4" style="display: none;">
-                <div class="card-header bg-dark text-white">🔥 Benchmark Results (1,000 Iterations)</div>
-                <div class="card-body">
-                    <table class="table table-bordered benchmark-table">
-                        <thead>
-                            <tr><th>Metric</th><th>Strings (Full)</th><th>Hashes (Partial)</th><th>Difference</th></tr>
+            <div id="benchmark-result" class="card card-custom shadow-sm mt-4 border-top border-warning border-4" style="display: none;">
+                <div class="card-header bg-white fw-bold"><i class="bi bi-graph-up me-2"></i>Comparison Result (1,000 Iterations)</div>
+                <div class="card-body p-0">
+                    <table class="table benchmark-table align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr><th>Metric</th><th>Strings (Full Object)</th><th>Hashes (Partial)</th><th>Analysis</th></tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td>Execution Time (ms)</td>
-                                <td id="res-s-time" class="text-danger fw-bold"></td>
-                                <td id="res-h-time" class="text-success fw-bold"></td>
-                                <td id="res-t-diff" class="fw-bold"></td>
+                                <td>Execution Time</td>
+                                <td id="res-s-time" class="text-danger"></td>
+                                <td id="res-h-time" class="text-success"></td>
+                                <td id="res-t-diff" class="fw-bold text-primary"></td>
                             </tr>
                             <tr>
-                                <td>Memory Usage (Bytes)</td>
+                                <td>Memory Usage</td>
                                 <td id="res-s-mem"></td>
                                 <td id="res-h-mem"></td>
-                                <td id="res-m-diff"></td>
+                                <td id="res-m-diff" class="text-success"></td>
                             </tr>
                         </tbody>
                     </table>
-                    <p class="text-muted small">* Execution time includes (Get->Modify->Set) for Strings, and (HSET) for Hashes.</p>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-5">
-            <div id="detail-card" class="card shadow-sm mb-3" style="display: none;">
+        <div class="col-lg-4">
+            <h5 class="phase-header fw-bold text-secondary">Real-time Inspection</h5>
+            <div id="detail-card" class="card card-custom shadow-sm mb-3 bg-white" style="display: none;">
                 <div class="card-body">
-                    <h5 class="card-title" id="p-name"></h5>
-                    <p class="card-text text-muted" id="p-desc"></p>
-                    <p>Price: <span id="p-price" class="fw-bold text-primary"></span></p>
-                    <p>Stock: <span id="p-stock" class="badge bg-info text-dark"></span></p>
-                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <h5 class="card-title fw-bold" id="p-name"></h5>
+                        <span id="p-source" class="source-badge"></span>
+                    </div>
+                    <p class="card-text text-muted small" id="p-desc"></p>
+                    <div class="row text-center bg-light rounded py-2 m-0">
+                        <div class="col-6 border-end">
+                            <small class="text-muted d-block">Price</small>
+                            <span class="fw-bold text-primary" id="p-price"></span>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted d-block">Stock</small>
+                            <span class="fw-bold" id="p-stock"></span>
+                        </div>
+                    </div>
+                    <hr class="my-3">
                     <div id="loading-bar" class="progress"><div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div></div>
-                    <p>Source: <span id="p-source" class="source-badge"></span></p>
-                    <p>Execution Time: <span id="p-time" class="fw-bold"></span> ms</p>
+                    <div class="d-flex justify-content-between small">
+                        <span class="text-muted">Latent Time</span>
+                        <span id="p-time" class="fw-bold"></span>
+                    </div>
                 </div>
             </div>
 
-            <div class="status-terminal" id="terminal">
-                <div>> Ready for Partial Update testing...</div>
-                <div>> Use 'Buy' button to see atomic stock reduction.</div>
+            <div class="status-terminal shadow-lg" id="terminal">
+                <div>> Initializing Phase 2 Environment...</div>
+                <div class="text-secondary small">> Try Buy (HINCRBY) or Update Price (HSET).</div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    function log(msg) {
+    function log(msg, color = '#00d000') {
         const term = document.getElementById('terminal');
-        const timestamp = new Date().toLocaleTimeString();
-        term.innerHTML += `<div><small class="text-secondary">[${timestamp}]</small> > ${msg}</div>`;
+        const timestamp = new Date().toLocaleTimeString([], { hour12: false });
+        term.innerHTML += `<div><small style="color: #666">[${timestamp}]</small> <span style="color: ${color}">> ${msg}</span></div>`;
         term.scrollTop = term.scrollHeight;
     }
 
@@ -113,7 +146,7 @@
         loadingBar.style.display = 'block';
         
         const endpoint = type === 'hash' ? `/api/products/hash/${id}` : `/api/products/${id}`;
-        log(`<strong>Requesting [${type.toUpperCase()}] Product ID: ${id}</strong>`);
+        log(`Checking ${type.toUpperCase()} Cache for ID: ${id}...`, '#3498db');
 
         try {
             const response = await fetch(endpoint);
@@ -122,42 +155,51 @@
             loadingBar.style.display = 'none';
             document.getElementById('p-name').innerText = result.data.name;
             document.getElementById('p-desc').innerText = result.data.description;
-            document.getElementById('p-price').innerText = result.data.price;
+            document.getElementById('p-price').innerText = `$ ${result.data.price}`;
             document.getElementById('p-stock').innerText = result.data.stock;
             
             const sourceEl = document.getElementById('p-source');
             sourceEl.innerText = result.source;
-            sourceEl.className = 'source-badge ' + (result.source.includes('CACHE') ? 'hit-hash' : 'miss');
-            document.getElementById('p-time').innerText = result.elapsedMillis;
+            sourceEl.className = 'source-badge ' + (result.source.includes('CACHE') ? (type === 'hash' ? 'hit-hash' : 'hit') : 'miss');
+            document.getElementById('p-time').innerText = `${result.elapsedMillis} ms`;
 
-            log(`<span class="text-info">${result.source} HIT!</span> Data from Redis.`);
-        } catch (err) { log(`<span class="text-danger">Error: ${err.message}</span>`); }
+            log(`${result.source} HIT! Elapsed: ${result.elapsedMillis}ms.`, result.source.includes('CACHE') ? '#2ecc71' : '#f1c40f');
+        } catch (err) { log(`Error: ${err.message}`, '#e74c3c'); }
     }
 
     async function updatePrice(id) {
         const newPrice = document.getElementById(`input-price-${id}`).value;
-        log(`Updating Price for ID ${id} to ${newPrice}...`);
+        const row = document.getElementById(`row-${id}`);
+        log(`Triggering HSET for field [price]...`, '#f39c12');
         
         try {
             await fetch(`/api/products/${id}/price?price=${newPrice}`, { method: 'PATCH' });
-            log(`<span class="text-success">Success!</span> Redis [price] field updated via HSET.`);
+            row.classList.add('flash-update');
+            setTimeout(() => row.classList.remove('flash-update'), 1500);
+            log(`Success: Partial update complete. Strings cache purged.`, '#2ecc71');
             fetchDetail(id, 'hash');
-        } catch (err) { log(`<span class="text-danger">Error: ${err.message}</span>`); }
+        } catch (err) { log(`Error: ${err.message}`, '#e74c3c'); }
     }
 
     async function decreaseStock(id) {
-        log(`Buying product ${id} (Stock -1)...`);
+        log(`Triggering Atomic HINCRBY (stock, -1)...`, '#f39c12');
         try {
             await fetch(`/api/products/${id}/decrease-stock?quantity=1`, { method: 'POST' });
-            log(`<span class="text-success">Success!</span> Atomic stock reduction via HINCRBY.`);
+            log(`Success: 원자적 재고 차감 완료.`, '#2ecc71');
             fetchDetail(id, 'hash');
-        } catch (err) { log(`<span class="text-danger">Error: ${err.message}</span>`); }
+        } catch (err) { log(`Error: ${err.message}`, '#e74c3c'); }
+    }
+
+    async function clearCache(id, type) {
+        log(`Purging ${type.toUpperCase()} cache from Redis...`, '#e74c3c');
+        try {
+            await fetch(`/api/products/${id}/cache?type=${type}`, { method: 'DELETE' });
+            log(`Success: Cache cleared. Next fetch will be Cache Miss.`, '#bdc3c7');
+        } catch (err) { log(`Error: ${err.message}`, '#e74c3c'); }
     }
 
     async function runBenchmark(id) {
-        log(`<strong>Running Performance Benchmark (1,000 iterations)...</strong>`);
-        log(`Comparing Strings (GET/SET) vs Hashes (HSET)...`);
-        
+        log(`<strong>Starting 1,000 Iterations Benchmark...</strong>`, '#fff');
         document.getElementById('benchmark-result').style.display = 'none';
 
         try {
@@ -168,17 +210,15 @@
             document.getElementById('res-s-time').innerText = `${result.stringsTimeMillis} ms`;
             document.getElementById('res-h-time').innerText = `${result.hashesTimeMillis} ms`;
             
-            const timeDiff = (result.stringsTimeMillis / result.hashesTimeMillis).toFixed(1);
-            document.getElementById('res-t-diff').innerText = `${timeDiff}x Faster`;
+            const timeDiff = (result.stringsTimeMillis / (result.hashesTimeMillis || 1)).toFixed(1);
+            document.getElementById('res-t-diff').innerText = `🚀 ${timeDiff}x Faster`;
 
             document.getElementById('res-s-mem').innerText = `${result.stringsMemoryBytes} B`;
             document.getElementById('res-h-mem').innerText = `${result.hashesMemoryBytes} B`;
-            
-            const memDiff = (result.stringsMemoryBytes - result.hashesMemoryBytes);
-            document.getElementById('res-m-diff').innerText = `${memDiff} B Saved`;
+            document.getElementById('res-m-diff').innerText = `📉 ${result.stringsMemoryBytes - result.hashesMemoryBytes} B Saved`;
 
-            log(`<span class="text-success fw-bold">Benchmark Complete!</span> Hashes is ${timeDiff}x faster than Strings for updates.`);
-        } catch (err) { log(`<span class="text-danger">Error: ${err.message}</span>`); }
+            log(`Benchmark Complete! Hashes is significantly more efficient.`, '#9b59b6');
+        } catch (err) { log(`Error: ${err.message}`, '#e74c3c'); }
     }
 </script>
 </body>

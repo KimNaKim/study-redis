@@ -51,9 +51,13 @@ public class ProductController {
         return ResponseEntity.ok("Stock decreased");
     }
 
-    /**
-     * [Phase 2] Strings vs Hashes 성능 벤치마크 API 추가
-     */
+    @DeleteMapping("/api/products/{id}/cache")
+    @ResponseBody
+    public ResponseEntity<String> clearCache(@PathVariable Long id, @RequestParam String type) {
+        productService.clearCache(id, type);
+        return ResponseEntity.ok("Cache cleared");
+    }
+
     @GetMapping("/api/benchmark/{id}")
     @ResponseBody
     public Map<String, Object> runBenchmark(@PathVariable Long id) {
