@@ -47,11 +47,11 @@
 - [x] `src/main/resources/data.sql`에 초기 재고 데이터 반영
 - [x] **검증**: 애플리케이션 실행 시 H2 DB에 재고 정보가 정상적으로 로드되는지 확인
 
-## [ ] 태스크 2: Hash 전용 캐싱 서비스 구현
-- [ ] `ProductService`에 Hashes 기반 캐싱 로직 추가 (`OpsForHash` 활용)
-- [ ] `saveProductAsHash(Long id)`: 상품 정보를 Hash 구조(`HSET`)로 저장
-- [ ] `getProductFromHash(Long id)`: Hash 구조에서 상품 정보를 읽어와 `ProductDto`로 변환
-- [ ] **검증**: Redis Insight 또는 CLI에서 데이터가 Hash 타입으로 저장되었는지 확인
+## [x] 태스크 2: Hash 전용 캐싱 서비스 구현
+- [x] Step 2.1: `RedisTemplate` 설정 확인 및 `HashOperations` 활용 준비
+- [x] Step 2.2: `ProductService`에 Hash 기반 저장 로직 구현 (`saveProductAsHash`)
+- [x] Step 2.3: `ProductService`에 Hash 기반 조회 로직 구현 (`getProductFromHash`)
+- [x] Step 2.4: 통합 테스트 코드 작성 및 검증 (Redis CLI 확인 포함)
 
 ## [ ] 태스크 3: 필드 단위 부분 업데이트 기능 구현
 - [ ] `updateProductPriceInHash(Long id, Long newPrice)`: 가격 필드만 수정 (`HSET`)

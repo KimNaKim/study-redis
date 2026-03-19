@@ -4,17 +4,18 @@
     <title>Redis Caching Dashboard</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <style>
-        .status-terminal { background: #2d2d2d; color: #00ff00; padding: 15px; border-radius: 5px; font-family: monospace; height: 150px; overflow-y: auto; margin-top: 20px; }
+        .status-terminal { background: #2d2d2d; color: #00ff00; padding: 15px; border-radius: 5px; font-family: monospace; height: 250px; overflow-y: auto; margin-top: 20px; }
         .progress { height: 5px; display: none; margin-bottom: 10px; }
         .source-badge { font-weight: bold; padding: 2px 8px; border-radius: 4px; }
         .hit { background-color: #d1e7dd; color: #0f5132; }
+        .hit-hash { background-color: #cfe2ff; color: #084298; }
         .miss { background-color: #fff3cd; color: #856404; }
     </style>
 </head>
 <body class="bg-light">
 <div class="container py-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>📦 Product List (Caching Demo)</h2>
+        <h2>📦 Product List (Phase 2: Hashes)</h2>
         <a href="/" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
     </div>
     
@@ -30,7 +31,12 @@
                         <td>{{id}}</td>
                         <td>{{name}}</td>
                         <td>{{price}}</td>
-                        <td><button class="btn btn-sm btn-primary" onclick="fetchDetail({{id}})">Fetch Detail</button></td>
+                        <td>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-primary" onclick="fetchDetail({{id}}, 'string')">Strings</button>
+                                <button class="btn btn-sm btn-primary" onclick="fetchDetail({{id}}, 'hash')">Hashes</button>
+                            </div>
+                        </td>
                     </tr>
                     {{/products}}
                 </tbody>
@@ -42,6 +48,8 @@
                 <div class="card-body">
                     <h5 class="card-title" id="p-name"></h5>
                     <p class="card-text text-muted" id="p-desc"></p>
+                    <p>Price: <span id="p-price" class="fw-bold"></span></p>
+                    <p>Stock: <span id="p-stock" class="badge bg-info text-dark"></span></p>
                     <hr>
                     <div id="loading-bar" class="progress"><div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div></div>
                     <p>Source: <span id="p-source" class="source-badge"></span></p>
@@ -50,7 +58,7 @@
             </div>
 
             <div class="status-terminal" id="terminal">
-                <div>> Ready for requests...</div>
+                <div>> Ready for Phase 2 Hash testing...</div>
             </div>
         </div>
     </div>
@@ -64,37 +72,38 @@
         term.scrollTop = term.scrollHeight;
     }
 
-    async function fetchDetail(id) {
+    async function fetchDetail(id, type) {
         const detailCard = document.getElementById('detail-card');
         const loadingBar = document.getElementById('loading-bar');
         
         detailCard.style.display = 'block';
         loadingBar.style.display = 'block';
         
-        log(`<strong>Requesting Product ID: ${id}</strong>`);
-        log(`Step 1: Checking Redis Cache...`);
+        const endpoint = type === 'hash' ? `/api/products/hash/${id}` : `/api/products/${id}`;
+        
+        log(`<strong>Requesting [${type.toUpperCase()}] Product ID: ${id}</strong>`);
+        log(`Checking Redis...`);
 
         try {
-            const response = await fetch(`/api/products/${id}`);
+            const response = await fetch(endpoint);
             const result = await response.json();
             
             loadingBar.style.display = 'none';
             document.getElementById('p-name').innerText = result.data.name;
             document.getElementById('p-desc').innerText = result.data.description;
+            document.getElementById('p-price').innerText = result.data.price;
+            document.getElementById('p-stock').innerText = result.data.stock;
             
             const sourceEl = document.getElementById('p-source');
             sourceEl.innerText = result.source;
-            sourceEl.className = 'source-badge ' + (result.source === 'CACHE' ? 'hit' : 'miss');
+            sourceEl.className = 'source-badge ' + (result.source.includes('CACHE') ? (type === 'hash' ? 'hit-hash' : 'hit') : 'miss');
             
             document.getElementById('p-time').innerText = result.elapsedMillis;
 
-            if (result.source === 'CACHE') {
-                log(`<span class="text-success fw-bold">CACHE HIT!</span> Data retrieved from Redis in ${result.elapsedMillis}ms.`);
+            if (result.source.includes('CACHE')) {
+                log(`<span class="text-info fw-bold">${result.source} HIT!</span> Data from Redis in ${result.elapsedMillis}ms.`);
             } else {
-                log(`<span class="text-warning fw-bold">CACHE MISS!</span> Accessing H2 Database...`);
-                log(`Step 2: Database lookup complete.`);
-                log(`Step 3: Updating Redis cache for next time.`);
-                log(`Total time: ${result.elapsedMillis}ms.`);
+                log(`<span class="text-warning fw-bold">CACHE MISS!</span> DB 조회 완료 후 Redis에 [${type}] 구조로 저장.`);
             }
 
         } catch (err) {
