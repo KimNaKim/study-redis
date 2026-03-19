@@ -16,10 +16,11 @@
 - [x] **UI**: 특정 필드 수정 기능 추가 및 실시간 반영 확인
 
 ## Phase 3: Lists & Sets (컬렉션 활용)
-- [ ] Lists를 활용한 '최근 조회한 상품' (Fixed-size Queue) 구현
-- [ ] Sets를 활용한 '상품 좋아요' 및 '중복 없는 방문자 수' 집계
-- [ ] `Lpush`, `Ltrim`, `Sadd`, `Scard` 등 주요 명령어 학습
-- [ ] **UI**: 최근 본 상품 리스트 및 좋아요 버튼/카운트 표시
+- [x] Redis Lists 데이터 구조 이해 및 `Lpush`, `Ltrim`, `Lrange` 활용
+- [x] '최근 본 상품' (Fixed-size Queue) 기능을 통한 활동 로그 구현
+- [x] Redis Sets 데이터 구조 이해 및 `Sadd`, `Srem`, `Scard`, `Sismember` 활용
+- [x] '상품 좋아요' 및 '일일 유니크 방문자(UV)' 집계 기능 구현
+- [x] **UI**: 실시간 사이드바 업데이트, 좋아요 버튼/카운트, 방문자 대시보드 통합
 
 ## Phase 4: Sorted Sets (실시간 리더보드)
 - [ ] Sorted Sets(ZSet)를 이용한 '인기 상품 랭킹' 시스템 구축

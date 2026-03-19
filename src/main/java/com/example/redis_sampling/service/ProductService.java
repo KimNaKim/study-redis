@@ -13,8 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -27,14 +27,69 @@ public class ProductService {
 
     private static final String PRODUCT_CACHE_KEY_PREFIX = "redis-sampling:product:";
     private static final String PRODUCT_HASH_KEY_PREFIX = "redis-sampling:product:hash:";
+    private static final String RECENT_PRODUCTS_KEY = "redis-sampling:user:guest:recent-products";
+    private static final String PRODUCT_LIKES_KEY_PREFIX = "redis-sampling:product:likes:";
+    private static final String DAILY_VISITORS_KEY_PREFIX = "redis-sampling:uv:";
 
     /**
-     * [Phase 2] Hashes 기반 캐싱 조회 (Look-aside)
+     * [Phase 3] 좋아요 토글 (SADD / SREM)
+     */
+    public void toggleLike(Long productId, String userId) {
+        String key = PRODUCT_LIKES_KEY_PREFIX + productId;
+        Boolean isMember = redisTemplate.opsForSet().isMember(key, userId);
+
+        if (Boolean.TRUE.equals(isMember)) {
+            redisTemplate.opsForSet().remove(key, userId);
+            log.info("Removed Like - Product: {}, User: {}", productId, userId);
+        } else {
+            redisTemplate.opsForSet().add(key, userId);
+            log.info("Added Like - Product: {}, User: {}", productId, userId);
+        }
+    }
+
+    /**
+     * [Phase 3] 좋아요 정보 조회 (SISMEMBER, SCARD)
+     */
+    public Map<String, Object> getLikeInfo(Long productId, String userId) {
+        String key = PRODUCT_LIKES_KEY_PREFIX + productId;
+        Map<String, Object> info = new HashMap<>();
+        info.put("isLiked", Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(key, userId)));
+        info.put("likeCount", Objects.requireNonNullElse(redisTemplate.opsForSet().size(key), 0L));
+        return info;
+    }
+
+    /**
+     * [Phase 3] 유니크 방문자 집계 (SADD)
+     */
+    public void trackVisitor(String userId) {
+        String today = java.time.LocalDate.now().toString();
+        String key = DAILY_VISITORS_KEY_PREFIX + today;
+
+        redisTemplate.opsForSet().add(key, userId);
+        redisTemplate.expire(key, Duration.ofDays(1)); // 1일 후 만료
+    }
+
+    /**
+     * [Phase 3] 오늘의 유니크 방문자 수 조회 (SCARD)
+     */
+    public Long getTodayVisitorCount() {
+        String today = java.time.LocalDate.now().toString();
+        String key = DAILY_VISITORS_KEY_PREFIX + today;
+        return redisTemplate.opsForSet().size(key);
+    }
+
+    /**
+     * [Phase 3] 최근 본 상품 추가 (LPUSH + LTRIM)
+
+     * [Phase 3] 최근 본 상품 리스트에 추가 로직 통합
      */
     @Transactional(readOnly = true)
     public CacheResponse<ProductDto> getProductFromHash(Long id) {
         long startTime = System.currentTimeMillis();
         String hashKey = PRODUCT_HASH_KEY_PREFIX + id;
+
+        // [Phase 3] 최근 본 상품 추가
+        addToRecentProducts(id);
 
         Map<Object, Object> entries = redisTemplate.opsForHash().entries(hashKey);
 
@@ -118,8 +173,13 @@ public class ProductService {
         for (int i = 0; i < iterations; i++) {
             ProductDto cached = (ProductDto) redisTemplate.opsForValue().get(stringKey);
             if (cached != null) {
-                ProductDto updated = new ProductDto(cached.getId(), cached.getName(), 
-                                                 1000.0 + i, cached.getDescription(), cached.getStock());
+                ProductDto updated = ProductDto.builder()
+                        .id(cached.getId())
+                        .name(cached.getName())
+                        .price(1000.0 + i)
+                        .description(cached.getDescription())
+                        .stock(cached.getStock())
+                        .build();
                 redisTemplate.opsForValue().set(stringKey, updated, Duration.ofSeconds(60));
             }
         }
@@ -149,6 +209,59 @@ public class ProductService {
         result.put("iterations", iterations);
 
         return result;
+    }
+
+    /**
+     * [Phase 3] 최근 본 상품 추가 (LPUSH + LTRIM)
+     */
+    public void addToRecentProducts(Long productId) {
+        String key = RECENT_PRODUCTS_KEY;
+        // 1. 기존 리스트에서 해당 상품 ID 삭제 (중복 방지 및 최신순 정렬을 위함)
+        redisTemplate.opsForList().remove(key, 0, productId.toString());
+        // 2. 리스트의 가장 앞에 추가
+        redisTemplate.opsForList().leftPush(key, productId.toString());
+        // 3. 최근 5개만 유지 (0 ~ 4)
+        redisTemplate.opsForList().trim(key, 0, 4);
+        log.info("Added to Recent Products - ID: {}", productId);
+    }
+
+    /**
+     * [Phase 3] 최근 본 상품 목록 조회 (LRANGE)
+     */
+    public List<ProductDto> getRecentProducts() {
+        List<Object> productIds = redisTemplate.opsForList().range(RECENT_PRODUCTS_KEY, 0, -1);
+        if (productIds == null || productIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // ID 목록을 바탕으로 실제 상품 정보 조회
+        return productIds.stream()
+                .map(id -> {
+                    try {
+                        Long productId = Long.parseLong(id.toString());
+                        String hashKey = PRODUCT_HASH_KEY_PREFIX + productId;
+                        Map<Object, Object> entries = redisTemplate.opsForHash().entries(hashKey);
+                        
+                        ProductDto dto;
+                        if (!entries.isEmpty()) {
+                            dto = objectMapper.convertValue(entries, ProductDto.class);
+                        } else {
+                            Product product = productRepository.findById(productId).orElse(null);
+                            dto = product != null ? new ProductDto(product) : null;
+                        }
+
+                        if (dto != null) {
+                            // 좋아요 정보 추가
+                            Map<String, Object> likeInfo = getLikeInfo(productId, "guest");
+                            return dto.updateLikeInfo((Boolean) likeInfo.get("isLiked"), (Long) likeInfo.get("likeCount"));
+                        }
+                        return null;
+                    } catch (Exception e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 
     /**

@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Redis Caching Dashboard</title>
+    <title>Redis Sampling Lab - Phase 3</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <style>
-        .status-terminal { background: #1e1e1e; color: #00d000; padding: 15px; border-radius: 8px; font-family: 'Consolas', monospace; height: 350px; overflow-y: auto; margin-top: 20px; border: 2px solid #333; }
+        .status-terminal { background: #1e1e1e; color: #00d000; padding: 15px; border-radius: 8px; font-family: 'Consolas', monospace; height: 300px; overflow-y: auto; margin-top: 20px; border: 2px solid #333; }
         .progress { height: 6px; display: none; margin-bottom: 12px; }
         .source-badge { font-weight: bold; padding: 3px 10px; border-radius: 6px; font-size: 0.8rem; }
         .hit { background-color: #d1e7dd; color: #0f5132; }
@@ -17,25 +17,43 @@
         @keyframes flash { 0% { background-color: #fff3cd; } 100% { background-color: transparent; } }
         .card-custom { border-radius: 12px; border: none; transition: 0.3s; }
         .card-custom:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .recent-item { border-left: 3px solid #dee2e6; transition: 0.2s; cursor: pointer; }
+        .recent-item:hover { border-left-color: #0d6efd; background-color: #f8f9fa; }
+        .like-btn { cursor: pointer; transition: 0.2s; }
+        .like-btn:hover { transform: scale(1.2); }
+        .liked { color: #dc3545 !important; }
     </style>
 </head>
 <body class="bg-light">
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
         <h2 class="fw-bold"><i class="bi bi-box-seam me-2 text-primary"></i>Redis Sampling Lab</h2>
-        <div>
+        <div class="d-flex align-items-center">
+            {{#isRedisUp}}
+            <span class="badge bg-success me-3 py-2 px-3 shadow-sm">
+                <i class="bi bi-hdd-network-fill me-1"></i> Redis: <strong>{{redisStatus}}</strong>
+            </span>
+            {{/isRedisUp}}
+            {{^isRedisUp}}
+            <span class="badge bg-danger me-3 py-2 px-3 shadow-sm">
+                <i class="bi bi-hdd-network me-1"></i> Redis: <strong>{{redisStatus}}</strong>
+            </span>
+            {{/isRedisUp}}
+            <span class="badge bg-white text-dark border me-3 py-2 px-3 shadow-sm">
+                <i class="bi bi-people-fill text-primary me-1"></i> Today Visitors: <strong class="text-primary">{{visitorCount}}</strong>
+            </span>
             <button class="btn btn-dark" onclick="runBenchmark(1)"><i class="bi bi-lightning-fill text-warning me-1"></i>Performance Test</button>
-            <a href="/" class="btn btn-outline-secondary ms-2">Dashboard</a>
+            <a href="/" class="btn btn-outline-secondary ms-2">Refresh</a>
         </div>
     </div>
     
     <div class="row">
         <div class="col-lg-8">
-            <h5 class="phase-header fw-bold text-secondary">Phase 1 & 2: Product Management</h5>
+            <h5 class="phase-header fw-bold text-secondary">Phase 1, 2 & 3: Product Management & Collections</h5>
             <div class="card card-custom shadow-sm p-3 mb-4 bg-white">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
-                        <tr><th>ID</th><th>Product Info</th><th>Price Edit</th><th>Stock</th><th class="text-center">Strategy Actions</th></tr>
+                        <tr><th>ID</th><th>Product Info</th><th>Price Edit</th><th>Stock</th><th class="text-center">Like</th><th class="text-center">Strategy</th></tr>
                     </thead>
                     <tbody>
                         {{#products}}
@@ -43,12 +61,12 @@
                             <td class="fw-bold">{{id}}</td>
                             <td>
                                 <div class="fw-bold">{{name}}</div>
-                                <small class="text-muted">JPA/H2 Resource</small>
+                                <small class="text-muted">JPA Resource</small>
                             </td>
                             <td>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control" id="input-price-{{id}}" value="{{price}}" style="width: 80px;">
+                                    <input type="number" class="form-control" id="input-price-{{id}}" value="{{price}}" style="width: 70px;">
                                     <button class="btn btn-outline-warning" onclick="updatePrice({{id}})" title="HSET"><i class="bi bi-pencil"></i></button>
                                 </div>
                             </td>
@@ -57,10 +75,15 @@
                                 <button class="btn btn-sm btn-link text-danger p-0 ms-1" onclick="decreaseStock({{id}})" title="HINCRBY"><i class="bi bi-cart-plus-fill fs-5"></i></button>
                             </td>
                             <td class="text-center">
+                                <span class="like-btn fs-5 {{#isLiked}}liked{{/isLiked}}" id="like-btn-{{id}}" onclick="toggleLike({{id}})">
+                                    <i class="bi {{#isLiked}}bi-heart-fill{{/isLiked}}{{^isLiked}}bi-heart{{/isLiked}}"></i>
+                                </span>
+                                <div class="small text-muted" id="like-count-{{id}}">{{likeCount}}</div>
+                            </td>
+                            <td class="text-center">
                                 <div class="btn-group">
-                                    <button class="btn btn-sm btn-outline-secondary" onclick="fetchDetail({{id}}, 'string')">Strings</button>
-                                    <button class="btn btn-sm btn-primary" onclick="fetchDetail({{id}}, 'hash')">Hashes</button>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="clearCache({{id}}, 'hash')" title="Clear Hash"><i class="bi bi-trash"></i></button>
+                                    <button class="btn btn-sm btn-primary" onclick="fetchDetail({{id}}, 'hash')">Fetch Detail</button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="clearCache({{id}}, 'hash')" title="Clear"><i class="bi bi-trash"></i></button>
                                 </div>
                             </td>
                         </tr>
@@ -96,6 +119,22 @@
         </div>
 
         <div class="col-lg-4">
+            <!-- Phase 3: Recent Products (Lists) -->
+            <h5 class="phase-header fw-bold text-secondary">Recent Viewed (Lists)</h5>
+            <div class="card card-custom shadow-sm mb-4 bg-white p-2" id="recent-products-list">
+                {{#recentProducts}}
+                <div class="recent-item p-2 mb-1 rounded" onclick="fetchDetail({{id}}, 'hash')">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold small">{{name}}</span>
+                        <span class="badge bg-light text-primary border">$ {{price}}</span>
+                    </div>
+                </div>
+                {{/recentProducts}}
+                {{^recentProducts}}
+                <div class="text-center py-3 text-muted small">No recently viewed items</div>
+                {{/recentProducts}}
+            </div>
+
             <h5 class="phase-header fw-bold text-secondary">Real-time Inspection</h5>
             <div id="detail-card" class="card card-custom shadow-sm mb-3 bg-white" style="display: none;">
                 <div class="card-body">
@@ -124,8 +163,8 @@
             </div>
 
             <div class="status-terminal shadow-lg" id="terminal">
-                <div>> Initializing Phase 2 Environment...</div>
-                <div class="text-secondary small">> Try Buy (HINCRBY) or Update Price (HSET).</div>
+                <div>> Phase 3: Lists & Sets Ready.</div>
+                <div class="text-secondary small">> Try clicking products or heart icons.</div>
             </div>
         </div>
     </div>
@@ -163,7 +202,60 @@
             sourceEl.className = 'source-badge ' + (result.source.includes('CACHE') ? (type === 'hash' ? 'hit-hash' : 'hit') : 'miss');
             document.getElementById('p-time').innerText = `${result.elapsedMillis} ms`;
 
-            log(`${result.source} HIT! Elapsed: ${result.elapsedMillis}ms.`, result.source.includes('CACHE') ? '#2ecc71' : '#f1c40f');
+            log(`${result.source} HIT! Added to Recently Viewed (Lists).`, result.source.includes('CACHE') ? '#2ecc71' : '#f1c40f');
+            
+            // [Phase 3] 사이드바 목록 실시간 갱신
+            updateRecentSidebar();
+        } catch (err) { log(`Error: ${err.message}`, '#e74c3c'); }
+    }
+
+    /**
+     * [Phase 3] 최근 본 상품 사이드바 실시간 업데이트 (AJAX)
+     */
+    async function updateRecentSidebar() {
+        try {
+            const response = await fetch('/api/products/recent');
+            const recentProducts = await response.json();
+            const listContainer = document.getElementById('recent-products-list');
+            
+            if (recentProducts.length === 0) {
+                listContainer.innerHTML = '<div class="text-center py-3 text-muted small">No recently viewed items</div>';
+                return;
+            }
+
+            let html = '';
+            recentProducts.forEach(p => {
+                html += `
+                    <div class="recent-item p-2 mb-1 rounded" onclick="fetchDetail(${p.id}, 'hash')">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold small">${p.name}</span>
+                            <span class="badge bg-light text-primary border">$ ${p.price}</span>
+                        </div>
+                    </div>`;
+            });
+            listContainer.innerHTML = html;
+        } catch (err) { console.error('Failed to update sidebar:', err); }
+    }
+
+    async function toggleLike(id) {
+        const btn = document.getElementById(`like-btn-${id}`);
+        const countEl = document.getElementById(`like-count-${id}`);
+        const isLiked = btn.classList.contains('liked');
+        
+        log(`Triggering SADD/SREM for Likes...`, '#e84393');
+        try {
+            await fetch(`/api/products/${id}/like`, { method: 'POST' });
+            
+            // UI 실시간 업데이트 (AJAX 방식)
+            btn.classList.toggle('liked');
+            const icon = btn.querySelector('i');
+            icon.classList.toggle('bi-heart');
+            icon.classList.toggle('bi-heart-fill');
+            
+            let currentCount = parseInt(countEl.innerText);
+            countEl.innerText = isLiked ? currentCount - 1 : currentCount + 1;
+            
+            log(`${isLiked ? 'Removed' : 'Added'} Like successfully. (Sets)`, '#2ecc71');
         } catch (err) { log(`Error: ${err.message}`, '#e74c3c'); }
     }
 
@@ -176,8 +268,7 @@
             await fetch(`/api/products/${id}/price?price=${newPrice}`, { method: 'PATCH' });
             row.classList.add('flash-update');
             setTimeout(() => row.classList.remove('flash-update'), 1500);
-            log(`Success: Partial update complete. Strings cache purged.`, '#2ecc71');
-            fetchDetail(id, 'hash');
+            log(`Success: Partial update complete.`, '#2ecc71');
         } catch (err) { log(`Error: ${err.message}`, '#e74c3c'); }
     }
 
@@ -194,7 +285,7 @@
         log(`Purging ${type.toUpperCase()} cache from Redis...`, '#e74c3c');
         try {
             await fetch(`/api/products/${id}/cache?type=${type}`, { method: 'DELETE' });
-            log(`Success: Cache cleared. Next fetch will be Cache Miss.`, '#bdc3c7');
+            log(`Success: Cache cleared.`, '#bdc3c7');
         } catch (err) { log(`Error: ${err.message}`, '#e74c3c'); }
     }
 
@@ -217,7 +308,7 @@
             document.getElementById('res-h-mem').innerText = `${result.hashesMemoryBytes} B`;
             document.getElementById('res-m-diff').innerText = `📉 ${result.stringsMemoryBytes - result.hashesMemoryBytes} B Saved`;
 
-            log(`Benchmark Complete! Hashes is significantly more efficient.`, '#9b59b6');
+            log(`Benchmark Complete!`, '#9b59b6');
         } catch (err) { log(`Error: ${err.message}`, '#e74c3c'); }
     }
 </script>
