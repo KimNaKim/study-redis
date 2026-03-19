@@ -18,6 +18,7 @@ public class ProductDto {
     private String name;
     private Double price;
     private String description;
+    private Long stock;
 
     // JPA 엔티티를 직접 주입받는 생성자 (불변성 유지)
     public ProductDto(Product entity) {
@@ -25,5 +26,6 @@ public class ProductDto {
         this.name = entity.getName();
         this.price = entity.getPrice();
         this.description = entity.getDescription();
+        this.stock = entity.getStock();
     }
 }

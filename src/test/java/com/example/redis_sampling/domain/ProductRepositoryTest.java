@@ -21,6 +21,7 @@ class ProductRepositoryTest {
                 .name("Redis Machine")
                 .price(10000.0)
                 .description("Fastest caching machine")
+                .stock(500L)
                 .build();
 
         // When
@@ -30,5 +31,6 @@ class ProductRepositoryTest {
         // Then
         assertThat(foundProduct.getName()).isEqualTo("Redis Machine");
         assertThat(foundProduct.getPrice()).isEqualTo(10000.0);
+        assertThat(foundProduct.getStock()).isEqualTo(500L);
     }
 }
