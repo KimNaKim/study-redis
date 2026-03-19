@@ -10,6 +10,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @Controller
 @RequiredArgsConstructor
 public class ProductController {
@@ -35,9 +37,6 @@ public class ProductController {
         return productService.getProductFromHash(id);
     }
 
-    /**
-     * [Phase 2] 가격 수정 API
-     */
     @PatchMapping("/api/products/{id}/price")
     @ResponseBody
     public ResponseEntity<String> updatePrice(@PathVariable Long id, @RequestParam Long price) {
@@ -45,13 +44,19 @@ public class ProductController {
         return ResponseEntity.ok("Price updated");
     }
 
-    /**
-     * [Phase 2] 재고 차감 API
-     */
     @PostMapping("/api/products/{id}/decrease-stock")
     @ResponseBody
     public ResponseEntity<String> decreaseStock(@PathVariable Long id, @RequestParam Long quantity) {
         productService.decreaseStock(id, quantity);
         return ResponseEntity.ok("Stock decreased");
+    }
+
+    /**
+     * [Phase 2] Strings vs Hashes 성능 벤치마크 API 추가
+     */
+    @GetMapping("/api/benchmark/{id}")
+    @ResponseBody
+    public Map<String, Object> runBenchmark(@PathVariable Long id) {
+        return productService.runBenchmark(id);
     }
 }

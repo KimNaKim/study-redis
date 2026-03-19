@@ -10,15 +10,17 @@
         .hit { background-color: #d1e7dd; color: #0f5132; }
         .hit-hash { background-color: #cfe2ff; color: #084298; }
         .miss { background-color: #fff3cd; color: #856404; }
-        .update-flash { animation: flash 1s; }
-        @keyframes flash { from { background-color: #fff3cd; } to { background-color: transparent; } }
+        .benchmark-table { font-size: 0.9rem; }
     </style>
 </head>
 <body class="bg-light">
 <div class="container py-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>📦 Product Management (Hashes Partial Update)</h2>
-        <a href="/" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+        <div>
+            <button class="btn btn-dark btn-sm" onclick="runBenchmark(1)">Run Performance Test (1,000 reqs)</button>
+            <a href="/" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+        </div>
     </div>
     
     <div class="row">
@@ -45,6 +47,33 @@
                     {{/products}}
                 </tbody>
             </table>
+
+            <!-- 벤치마크 결과 영역 -->
+            <div id="benchmark-result" class="card shadow-sm mt-4" style="display: none;">
+                <div class="card-header bg-dark text-white">🔥 Benchmark Results (1,000 Iterations)</div>
+                <div class="card-body">
+                    <table class="table table-bordered benchmark-table">
+                        <thead>
+                            <tr><th>Metric</th><th>Strings (Full)</th><th>Hashes (Partial)</th><th>Difference</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Execution Time (ms)</td>
+                                <td id="res-s-time" class="text-danger fw-bold"></td>
+                                <td id="res-h-time" class="text-success fw-bold"></td>
+                                <td id="res-t-diff" class="fw-bold"></td>
+                            </tr>
+                            <tr>
+                                <td>Memory Usage (Bytes)</td>
+                                <td id="res-s-mem"></td>
+                                <td id="res-h-mem"></td>
+                                <td id="res-m-diff"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="text-muted small">* Execution time includes (Get->Modify->Set) for Strings, and (HSET) for Hashes.</p>
+                </div>
+            </div>
         </div>
 
         <div class="col-md-5">
@@ -112,19 +141,43 @@
         try {
             await fetch(`/api/products/${id}/price?price=${newPrice}`, { method: 'PATCH' });
             log(`<span class="text-success">Success!</span> Redis [price] field updated via HSET.`);
-            log(`Strings cache invalidated to maintain consistency.`);
-            // 새로고침 대신 Hash 조회를 통해 확인 유도
             fetchDetail(id, 'hash');
         } catch (err) { log(`<span class="text-danger">Error: ${err.message}</span>`); }
     }
 
     async function decreaseStock(id) {
         log(`Buying product ${id} (Stock -1)...`);
-        
         try {
             await fetch(`/api/products/${id}/decrease-stock?quantity=1`, { method: 'POST' });
             log(`<span class="text-success">Success!</span> Atomic stock reduction via HINCRBY.`);
             fetchDetail(id, 'hash');
+        } catch (err) { log(`<span class="text-danger">Error: ${err.message}</span>`); }
+    }
+
+    async function runBenchmark(id) {
+        log(`<strong>Running Performance Benchmark (1,000 iterations)...</strong>`);
+        log(`Comparing Strings (GET/SET) vs Hashes (HSET)...`);
+        
+        document.getElementById('benchmark-result').style.display = 'none';
+
+        try {
+            const response = await fetch(`/api/benchmark/${id}`);
+            const result = await response.json();
+            
+            document.getElementById('benchmark-result').style.display = 'block';
+            document.getElementById('res-s-time').innerText = `${result.stringsTimeMillis} ms`;
+            document.getElementById('res-h-time').innerText = `${result.hashesTimeMillis} ms`;
+            
+            const timeDiff = (result.stringsTimeMillis / result.hashesTimeMillis).toFixed(1);
+            document.getElementById('res-t-diff').innerText = `${timeDiff}x Faster`;
+
+            document.getElementById('res-s-mem').innerText = `${result.stringsMemoryBytes} B`;
+            document.getElementById('res-h-mem').innerText = `${result.hashesMemoryBytes} B`;
+            
+            const memDiff = (result.stringsMemoryBytes - result.hashesMemoryBytes);
+            document.getElementById('res-m-diff').innerText = `${memDiff} B Saved`;
+
+            log(`<span class="text-success fw-bold">Benchmark Complete!</span> Hashes is ${timeDiff}x faster than Strings for updates.`);
         } catch (err) { log(`<span class="text-danger">Error: ${err.message}</span>`); }
     }
 </script>

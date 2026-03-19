@@ -7,11 +7,13 @@ import com.example.redis_sampling.dto.ProductDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
@@ -25,6 +27,55 @@ public class ProductService {
 
     private static final String PRODUCT_CACHE_KEY_PREFIX = "redis-sampling:product:";
     private static final String PRODUCT_HASH_KEY_PREFIX = "redis-sampling:product:hash:";
+
+    /**
+     * [Phase 2] Strings vs Hashes 성능 및 구조 벤치마크 (Step 4.1 ~ 4.2)
+     */
+    public Map<String, Object> runBenchmark(Long id) {
+        String stringKey = PRODUCT_CACHE_KEY_PREFIX + id;
+        String hashKey = PRODUCT_HASH_KEY_PREFIX + id;
+
+        // 사전 준비: 두 캐시에 데이터가 존재하도록 강제 생성
+        getProductWithCaching(id);
+        getProductFromHash(id);
+
+        Map<String, Object> result = new HashMap<>();
+        int iterations = 1000;
+
+        // 1. Strings 방식 벤치마크 (1,000회 반복: GET -> New DTO -> SET)
+        long stringStart = System.currentTimeMillis();
+        for (int i = 0; i < iterations; i++) {
+            ProductDto cached = (ProductDto) redisTemplate.opsForValue().get(stringKey);
+            if (cached != null) {
+                // 불변 DTO이므로 새로 생성 (가장 흔한 패턴)
+                ProductDto updated = new ProductDto(cached.getId(), cached.getName(), 
+                                                 1000.0 + i, cached.getDescription(), cached.getStock());
+                redisTemplate.opsForValue().set(stringKey, updated, Duration.ofSeconds(60));
+            }
+        }
+        long stringEnd = System.currentTimeMillis();
+        result.put("stringsTimeMillis", stringEnd - stringStart);
+
+        // 2. Hashes 방식 벤치마크 (1,000회 반복: HSET price)
+        long hashStart = System.currentTimeMillis();
+        for (int i = 0; i < iterations; i++) {
+            redisTemplate.opsForHash().put(hashKey, "price", 1000.0 + i);
+        }
+        long hashEnd = System.currentTimeMillis();
+        result.put("hashesTimeMillis", hashEnd - hashStart);
+
+        // 3. 메모리 점유 측정 (Redis MEMORY USAGE 명령어 활용)
+        Long stringMemory = redisTemplate.execute((RedisCallback<Long>) connection -> 
+            connection.keyCommands().memoryUsage(stringKey.getBytes()));
+        Long hashMemory = redisTemplate.execute((RedisCallback<Long>) connection -> 
+            connection.keyCommands().memoryUsage(hashKey.getBytes()));
+
+        result.put("stringsMemoryBytes", stringMemory);
+        result.put("hashesMemoryBytes", hashMemory);
+        result.put("iterations", iterations);
+
+        return result;
+    }
 
     /**
      * [Phase 2] Hashes 기반 캐싱 조회 (Look-aside)
@@ -59,18 +110,15 @@ public class ProductService {
     public void updateProductPrice(Long id, Long newPrice) {
         String hashKey = PRODUCT_HASH_KEY_PREFIX + id;
 
-        // 1. Redis Hash 필드만 수정 (HSET)
         if (Boolean.TRUE.equals(redisTemplate.hasKey(hashKey))) {
             log.info("Updating Redis Hash Field [price] - Key: {}, New Price: {}", hashKey, newPrice);
-            redisTemplate.opsForHash().put(hashKey, "price", newPrice);
+            redisTemplate.opsForHash().put(hashKey, "price", newPrice.doubleValue());
         }
 
-        // 2. DB 업데이트 (동기화)
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
         product.updatePrice(newPrice);
         
-        // 3. 기존 Strings 캐시 삭제 (데이터 정합성 유지)
         redisTemplate.delete(PRODUCT_CACHE_KEY_PREFIX + id);
     }
 
@@ -81,19 +129,15 @@ public class ProductService {
     public void decreaseStock(Long id, Long quantity) {
         String hashKey = PRODUCT_HASH_KEY_PREFIX + id;
 
-        // 1. Redis Hash 필드 원자적 차감 (HINCRBY)
         if (Boolean.TRUE.equals(redisTemplate.hasKey(hashKey))) {
             log.info("Decreasing Redis Hash Field [stock] - Key: {}, Quantity: {}", hashKey, quantity);
-            // increment에 음수를 전달하여 차감 수행
             redisTemplate.opsForHash().increment(hashKey, "stock", -quantity);
         }
 
-        // 2. DB 업데이트 (동기화)
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
         product.decreaseStock(quantity);
 
-        // 3. 기존 Strings 캐시 삭제 (데이터 정합성 유지)
         redisTemplate.delete(PRODUCT_CACHE_KEY_PREFIX + id);
     }
 
