@@ -53,10 +53,11 @@
 - [x] Step 2.3: `ProductService`에 Hash 기반 조회 로직 구현 (`getProductFromHash`)
 - [x] Step 2.4: 통합 테스트 코드 작성 및 검증 (Redis CLI 확인 포함)
 
-## [ ] 태스크 3: 필드 단위 부분 업데이트 기능 구현
-- [ ] `updateProductPriceInHash(Long id, Long newPrice)`: 가격 필드만 수정 (`HSET`)
-- [ ] `decreaseStockInHash(Long id, Long quantity)`: `HINCRBY`를 이용한 원자적 재고 차감 구현
-- [ ] **검증**: 가격 변경 시 Redis 내의 다른 필드(이름 등)는 유지되고 가격만 변하는지 확인
+## [x] 태스크 3: 필드 단위 부분 업데이트 기능 구현
+- [x] Step 3.1: `ProductService`에 부분 업데이트 로직 구현 (`updateProductPrice`, `decreaseStock`)
+- [x] Step 3.2: `ProductController`에 업데이트 API 엔드포인트 추가
+- [x] Step 3.3: 비즈니스 로직 보호 (DB 동기화 고려) 및 예외 처리
+- [x] Step 3.4: 통합 테스트 코드 작성 및 검증 (원자적 차감 확인 포함)
 
 ## [ ] 태스크 4: Strings vs Hashes 성능 및 구조 비교 테스트
 - [ ] 테스트 코드 작성: 전체 객체 덮어쓰기(Strings) vs 부분 필드 수정(Hashes) 속도 비교

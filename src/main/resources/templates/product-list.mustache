@@ -4,18 +4,20 @@
     <title>Redis Caching Dashboard</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <style>
-        .status-terminal { background: #2d2d2d; color: #00ff00; padding: 15px; border-radius: 5px; font-family: monospace; height: 250px; overflow-y: auto; margin-top: 20px; }
+        .status-terminal { background: #2d2d2d; color: #00ff00; padding: 15px; border-radius: 5px; font-family: monospace; height: 350px; overflow-y: auto; margin-top: 20px; }
         .progress { height: 5px; display: none; margin-bottom: 10px; }
         .source-badge { font-weight: bold; padding: 2px 8px; border-radius: 4px; }
         .hit { background-color: #d1e7dd; color: #0f5132; }
         .hit-hash { background-color: #cfe2ff; color: #084298; }
         .miss { background-color: #fff3cd; color: #856404; }
+        .update-flash { animation: flash 1s; }
+        @keyframes flash { from { background-color: #fff3cd; } to { background-color: transparent; } }
     </style>
 </head>
 <body class="bg-light">
 <div class="container py-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>📦 Product List (Phase 2: Hashes)</h2>
+        <h2>📦 Product Management (Hashes Partial Update)</h2>
         <a href="/" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
     </div>
     
@@ -23,18 +25,20 @@
         <div class="col-md-7">
             <table class="table table-hover bg-white shadow-sm rounded">
                 <thead class="table-dark">
-                    <tr><th>ID</th><th>Name</th><th>Price</th><th>Action</th></tr>
+                    <tr><th>ID</th><th>Name</th><th>Price</th><th>Stock</th><th>Action</th></tr>
                 </thead>
                 <tbody>
                     {{#products}}
-                    <tr>
+                    <tr id="row-{{id}}">
                         <td>{{id}}</td>
                         <td>{{name}}</td>
-                        <td>{{price}}</td>
+                        <td><input type="number" class="form-control form-control-sm d-inline-block w-50" id="input-price-{{id}}" value="{{price}}"></td>
+                        <td>{{stock}}</td>
                         <td>
                             <div class="btn-group">
-                                <button class="btn btn-sm btn-outline-primary" onclick="fetchDetail({{id}}, 'string')">Strings</button>
-                                <button class="btn btn-sm btn-primary" onclick="fetchDetail({{id}}, 'hash')">Hashes</button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="fetchDetail({{id}}, 'hash')">Fetch (Hash)</button>
+                                <button class="btn btn-sm btn-warning" onclick="updatePrice({{id}})">Update Price</button>
+                                <button class="btn btn-sm btn-danger" onclick="decreaseStock({{id}})">Buy (1)</button>
                             </div>
                         </td>
                     </tr>
@@ -48,7 +52,7 @@
                 <div class="card-body">
                     <h5 class="card-title" id="p-name"></h5>
                     <p class="card-text text-muted" id="p-desc"></p>
-                    <p>Price: <span id="p-price" class="fw-bold"></span></p>
+                    <p>Price: <span id="p-price" class="fw-bold text-primary"></span></p>
                     <p>Stock: <span id="p-stock" class="badge bg-info text-dark"></span></p>
                     <hr>
                     <div id="loading-bar" class="progress"><div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div></div>
@@ -58,7 +62,8 @@
             </div>
 
             <div class="status-terminal" id="terminal">
-                <div>> Ready for Phase 2 Hash testing...</div>
+                <div>> Ready for Partial Update testing...</div>
+                <div>> Use 'Buy' button to see atomic stock reduction.</div>
             </div>
         </div>
     </div>
@@ -75,14 +80,11 @@
     async function fetchDetail(id, type) {
         const detailCard = document.getElementById('detail-card');
         const loadingBar = document.getElementById('loading-bar');
-        
         detailCard.style.display = 'block';
         loadingBar.style.display = 'block';
         
         const endpoint = type === 'hash' ? `/api/products/hash/${id}` : `/api/products/${id}`;
-        
         log(`<strong>Requesting [${type.toUpperCase()}] Product ID: ${id}</strong>`);
-        log(`Checking Redis...`);
 
         try {
             const response = await fetch(endpoint);
@@ -96,19 +98,34 @@
             
             const sourceEl = document.getElementById('p-source');
             sourceEl.innerText = result.source;
-            sourceEl.className = 'source-badge ' + (result.source.includes('CACHE') ? (type === 'hash' ? 'hit-hash' : 'hit') : 'miss');
-            
+            sourceEl.className = 'source-badge ' + (result.source.includes('CACHE') ? 'hit-hash' : 'miss');
             document.getElementById('p-time').innerText = result.elapsedMillis;
 
-            if (result.source.includes('CACHE')) {
-                log(`<span class="text-info fw-bold">${result.source} HIT!</span> Data from Redis in ${result.elapsedMillis}ms.`);
-            } else {
-                log(`<span class="text-warning fw-bold">CACHE MISS!</span> DB 조회 완료 후 Redis에 [${type}] 구조로 저장.`);
-            }
+            log(`<span class="text-info">${result.source} HIT!</span> Data from Redis.`);
+        } catch (err) { log(`<span class="text-danger">Error: ${err.message}</span>`); }
+    }
 
-        } catch (err) {
-            log(`<span class="text-danger">Error: ${err.message}</span>`);
-        }
+    async function updatePrice(id) {
+        const newPrice = document.getElementById(`input-price-${id}`).value;
+        log(`Updating Price for ID ${id} to ${newPrice}...`);
+        
+        try {
+            await fetch(`/api/products/${id}/price?price=${newPrice}`, { method: 'PATCH' });
+            log(`<span class="text-success">Success!</span> Redis [price] field updated via HSET.`);
+            log(`Strings cache invalidated to maintain consistency.`);
+            // 새로고침 대신 Hash 조회를 통해 확인 유도
+            fetchDetail(id, 'hash');
+        } catch (err) { log(`<span class="text-danger">Error: ${err.message}</span>`); }
+    }
+
+    async function decreaseStock(id) {
+        log(`Buying product ${id} (Stock -1)...`);
+        
+        try {
+            await fetch(`/api/products/${id}/decrease-stock?quantity=1`, { method: 'POST' });
+            log(`<span class="text-success">Success!</span> Atomic stock reduction via HINCRBY.`);
+            fetchDetail(id, 'hash');
+        } catch (err) { log(`<span class="text-danger">Error: ${err.message}</span>`); }
     }
 </script>
 </body>

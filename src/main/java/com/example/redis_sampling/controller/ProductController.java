@@ -5,11 +5,10 @@ import com.example.redis_sampling.dto.CacheResponse;
 import com.example.redis_sampling.dto.ProductDto;
 import com.example.redis_sampling.service.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 @Controller
 @RequiredArgsConstructor
@@ -24,21 +23,35 @@ public class ProductController {
         return "product-list";
     }
 
-    /**
-     * [Phase 1] Strings 기반 API
-     */
     @GetMapping("/api/products/{id}")
     @ResponseBody
     public CacheResponse<ProductDto> getProductApi(@PathVariable Long id) {
         return productService.getProductWithCaching(id);
     }
 
-    /**
-     * [Phase 2] Hashes 기반 API 추가
-     */
     @GetMapping("/api/products/hash/{id}")
     @ResponseBody
     public CacheResponse<ProductDto> getProductHashApi(@PathVariable Long id) {
         return productService.getProductFromHash(id);
+    }
+
+    /**
+     * [Phase 2] 가격 수정 API
+     */
+    @PatchMapping("/api/products/{id}/price")
+    @ResponseBody
+    public ResponseEntity<String> updatePrice(@PathVariable Long id, @RequestParam Long price) {
+        productService.updateProductPrice(id, price);
+        return ResponseEntity.ok("Price updated");
+    }
+
+    /**
+     * [Phase 2] 재고 차감 API
+     */
+    @PostMapping("/api/products/{id}/decrease-stock")
+    @ResponseBody
+    public ResponseEntity<String> decreaseStock(@PathVariable Long id, @RequestParam Long quantity) {
+        productService.decreaseStock(id, quantity);
+        return ResponseEntity.ok("Stock decreased");
     }
 }

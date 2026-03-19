@@ -34,4 +34,21 @@ public class Product {
         this.description = description;
         this.stock = stock;
     }
+
+    /**
+     * 가격 업데이트
+     */
+    public void updatePrice(Long newPrice) {
+        this.price = newPrice.doubleValue();
+    }
+
+    /**
+     * 재고 차감
+     */
+    public void decreaseStock(Long quantity) {
+        if (this.stock < quantity) {
+            throw new RuntimeException("Not enough stock");
+        }
+        this.stock -= quantity;
+    }
 }
