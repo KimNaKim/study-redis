@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +31,57 @@ public class ProductService {
     private static final String RECENT_PRODUCTS_KEY = "redis-sampling:user:guest:recent-products";
     private static final String PRODUCT_LIKES_KEY_PREFIX = "redis-sampling:product:likes:";
     private static final String DAILY_VISITORS_KEY_PREFIX = "redis-sampling:uv:";
+    private static final String RANKING_KEY = "redis-sampling:ranking";
+
+    /**
+     * [Phase 4] 상품 조회수 증가 (ZINCRBY)
+     */
+    public void incrementViewCount(Long productId) {
+        log.info("Incrementing View Count (ZSet) - Product ID: {}", productId);
+        redisTemplate.opsForZSet().incrementScore(RANKING_KEY, productId.toString(), 1);
+    }
+
+    /**
+     * [Phase 4] 실시간 인기 랭킹 조회 (ZREVRANGE)
+     */
+    public List<Map<String, Object>> getTopRankedProducts(int limit) {
+        Set<ZSetOperations.TypedTuple<Object>> rankedItems = 
+                redisTemplate.opsForZSet().reverseRangeWithScores(RANKING_KEY, 0, limit - 1);
+
+        if (rankedItems == null || rankedItems.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return rankedItems.stream()
+                .map(tuple -> {
+                    Map<String, Object> map = new HashMap<>();
+                    Long productId = Long.parseLong(tuple.getValue().toString());
+                    Double score = tuple.getScore();
+
+                    // 상품 상세 정보 조회 (캐시 활용)
+                    String hashKey = PRODUCT_HASH_KEY_PREFIX + productId;
+                    Map<Object, Object> entries = redisTemplate.opsForHash().entries(hashKey);
+                    ProductDto dto;
+                    if (!entries.isEmpty()) {
+                        dto = objectMapper.convertValue(entries, ProductDto.class);
+                    } else {
+                        Product product = productRepository.findById(productId).orElse(null);
+                        dto = product != null ? new ProductDto(product) : null;
+                    }
+
+                    if (dto != null) {
+                        // 좋아요 정보 추가
+                        Map<String, Object> likeInfo = getLikeInfo(productId, "guest");
+                        dto = dto.updateLikeInfo((Boolean) likeInfo.get("isLiked"), (Long) likeInfo.get("likeCount"));
+                    }
+
+                    map.put("product", dto);
+                    map.put("score", score != null ? score.longValue() : 0L);
+                    return map;
+                })
+                .filter(m -> m.get("product") != null)
+                .collect(Collectors.toList());
+    }
 
     /**
      * [Phase 3] 좋아요 토글 (SADD / SREM)
@@ -80,8 +132,6 @@ public class ProductService {
 
     /**
      * [Phase 3] 최근 본 상품 추가 (LPUSH + LTRIM)
-
-     * [Phase 3] 최근 본 상품 리스트에 추가 로직 통합
      */
     @Transactional(readOnly = true)
     public CacheResponse<ProductDto> getProductFromHash(Long id) {
@@ -90,6 +140,9 @@ public class ProductService {
 
         // [Phase 3] 최근 본 상품 추가
         addToRecentProducts(id);
+        
+        // [Phase 4] 실시간 랭킹 점수(조회수) 증가
+        incrementViewCount(id);
 
         Map<Object, Object> entries = redisTemplate.opsForHash().entries(hashKey);
 

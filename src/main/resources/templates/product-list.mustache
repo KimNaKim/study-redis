@@ -135,6 +135,20 @@
                 {{/recentProducts}}
             </div>
 
+            <!-- Phase 4: Popular Ranking (Sorted Sets) -->
+            <h5 class="phase-header fw-bold text-secondary">Real-time Top 5 (ZSets)</h5>
+            <div class="card card-custom shadow-sm mb-4 bg-white p-2" id="ranking-list">
+                {{#ranking}}
+                <div class="d-flex align-items-center p-2 mb-1 rounded border-bottom-dashed">
+                    <span class="badge bg-warning text-dark me-2"># {{score}} Views</span>
+                    <span class="fw-bold small text-truncate" style="max-width: 150px;">{{product.name}}</span>
+                </div>
+                {{/ranking}}
+                {{^ranking}}
+                <div class="text-center py-3 text-muted small">No rankings available</div>
+                {{/ranking}}
+            </div>
+
             <h5 class="phase-header fw-bold text-secondary">Real-time Inspection</h5>
             <div id="detail-card" class="card card-custom shadow-sm mb-3 bg-white" style="display: none;">
                 <div class="card-body">
@@ -206,7 +220,37 @@
             
             // [Phase 3] 사이드바 목록 실시간 갱신
             updateRecentSidebar();
+            // [Phase 4] 실시간 랭킹 갱신
+            updateRanking();
         } catch (err) { log(`Error: ${err.message}`, '#e74c3c'); }
+    }
+
+    /**
+     * [Phase 4] 실시간 인기 랭킹 업데이트 (AJAX)
+     */
+    async function updateRanking() {
+        try {
+            const response = await fetch('/api/products/ranking');
+            const ranking = await response.json();
+            const rankingContainer = document.getElementById('ranking-list');
+            
+            if (ranking.length === 0) {
+                rankingContainer.innerHTML = '<div class="text-center py-3 text-muted small">No rankings available</div>';
+                return;
+            }
+
+            let html = '';
+            ranking.forEach((item, index) => {
+                const badgeClass = index === 0 ? 'bg-danger' : (index === 1 ? 'bg-warning text-dark' : 'bg-secondary');
+                html += `
+                    <div class="d-flex align-items-center p-2 mb-1 rounded border-bottom">
+                        <span class="badge ${badgeClass} me-2" style="width: 30px;">${index + 1}</span>
+                        <span class="fw-bold small text-truncate flex-grow-1">${item.product.name}</span>
+                        <small class="text-muted"><i class="bi bi-eye me-1"></i>${item.score}</small>
+                    </div>`;
+            });
+            rankingContainer.innerHTML = html;
+        } catch (err) { console.error('Failed to update ranking:', err); }
     }
 
     /**

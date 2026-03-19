@@ -93,6 +93,27 @@
 - [x] Step 4.3: 메인 대시보드에 '오늘의 방문자 수' 수치 표시
 - [x] **검증**: 클릭 이벤트 발생 시 UI에 실시간 데이터 반영 확인
 
-## [x] 태스크 5: Phase 3 최종 검증 및 리포트 작성
-- [x] Step 5.1: Lists & Sets 통합 테스트 코드 작성 (Edge Case 포함)
-- [x] Step 5.2: `.person/reports` 폴더에 작업 리포트 작성 및 Phase 3 완료 보고
+---
+
+# TODO: Phase 4 - Sorted Sets (실시간 리더보드)
+
+이 단계의 목표는 Redis의 Sorted Sets(ZSet) 자료구조를 활용하여 Score(조회수) 기반의 실시간 상품 랭킹 시스템을 구축하는 것입니다.
+
+## [x] 태스크 1: 가중치(Score) 기반 상품 조회수 집계
+- [x] Step 1.1: `ProductService`에 상품 조회수 증가 로직 구현 (`Zincrby`)
+- [x] Step 1.2: 상품 상세 조회(`getProductFromHash`) 호출 시 조회수 증가 연동
+- [x] **검증**: Redis CLI에서 `ZSCORE` 명령으로 특정 상품의 점수가 정상 증가하는지 확인
+
+## [x] 태스크 3: 실시간 인기 랭킹 조회 기능 구현
+- [x] Step 2.1: `ProductService`에 실시간 Top 5 랭킹 조회 로직 구현 (`ZrevrangeWithScores`)
+- [x] Step 2.2: `ProductController`에 랭킹 조회 API 엔드포인트 추가
+- [x] **검증**: 점수가 높은 순서대로 리스트가 반환되는지 확인
+
+## [x] 태스크 3: Web UI 확장 및 실시간 리더보드 시각화
+- [x] Step 3.1: `product-list.mustache`에 '실시간 인기 상품 Top 5' 섹션 추가
+- [x] Step 3.2: 일정 시간마다 또는 특정 이벤트 시 랭킹 목록을 갱신하는 JS 로직 추가
+- [x] **검증**: 여러 상품을 클릭했을 때 실시간으로 순위가 변동되는지 확인
+
+## [x] 태스크 4: Phase 4 최종 검증 및 리포트 작성
+- [x] Step 4.1: Sorted Sets 통합 테스트 코드 작성 (사용자 요청으로 생략)
+- [x] Step 4.2: `.person/reports` 폴더에 작업 리포트 작성 및 Phase 4 완료 보고

@@ -23,10 +23,11 @@
 - [x] **UI**: 실시간 사이드바 업데이트, 좋아요 버튼/카운트, 방문자 대시보드 통합
 
 ## Phase 4: Sorted Sets (실시간 리더보드)
-- [ ] Sorted Sets(ZSet)를 이용한 '인기 상품 랭킹' 시스템 구축
-- [ ] Score(조회수 또는 판매량) 기반의 실시간 정렬 및 순위 추출
-- [ ] `Zadd`, `Zrevrange`, `Zrank` 등을 활용한 랭킹 조회 API 구현
-- [ ] **UI**: 실시간 인기 상품 Top 10 대시보드 구현
+- [x] Redis Sorted Sets(ZSet) 데이터 구조 이해 및 `Zincrby`, `ZrevrangeWithScores` 활용
+- [x] 상품 조회수(Score) 기반의 실시간 인기 랭킹 시스템 구축
+- [x] **UI**: 실시간 인기 상품 Top 5 리더보드 구현 및 자동 갱신(5초 간격) 연동
+- [x] 더미 데이터 확장을 통한 랭킹 변동 테스트 완료
+
 
 ## Phase 5: 고급 기능 (Pub/Sub & Geospatial)
 - [ ] Redis Pub/Sub을 활용한 실시간 이벤트 알림 (예: 재고 부족 알림)
