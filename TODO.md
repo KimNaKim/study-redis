@@ -70,11 +70,11 @@
 
 이 단계의 목표는 Redis의 컬렉션 타입인 Lists와 Sets를 활용하여 선입선출(FIFO) 기반의 활동 로그(최근 본 상품)와 중복을 허용하지 않는 데이터(좋아요, 방문자 집계)를 구현하는 것입니다.
 
-## [ ] 태스크 1: Lists를 활용한 '최근 조회한 상품' 기능 구현
+## [x] 태스크 1: Lists를 활용한 '최근 조회한 상품' 기능 구현
 - [x] Step 1.1: `ProductService`에 최근 본 상품 추가 로직 구현 (`Lpush` & `Ltrim`으로 최대 5개 유지)
 - [x] Step 1.2: `ProductService`에 최근 본 상품 목록 조회 로직 구현 (`Lrange`)
 - [x] Step 1.3: 상품 상세 조회(또는 목록 클릭) 시 자동으로 리스트에 추가되도록 연동
-- [ ] **검증**: 동일 상품 중복 노출 방지 로직 및 고정 크기(5개) 유지 테스트
+- [x] **검증**: 동일 상품 중복 노출 방지 로직 및 고정 크기(5개) 유지 테스트
 
 ## [x] 태스크 2: Sets를 활용한 '상품 좋아요' 기능 구현
 - [x] Step 2.1: `ProductService`에 좋아요 추가/취소 로직 구현 (`Sadd`, `Srem`)
@@ -117,3 +117,28 @@
 ## [x] 태스크 4: Phase 4 최종 검증 및 리포트 작성
 - [x] Step 4.1: Sorted Sets 통합 테스트 코드 작성 (사용자 요청으로 생략)
 - [x] Step 4.2: `.person/reports` 폴더에 작업 리포트 작성 및 Phase 4 완료 보고
+
+---
+
+# TODO: Phase 5 - Pub/Sub (실시간 이벤트 알림) (완료)
+
+이 단계의 목표는 Redis Pub/Sub 기능을 활용하여 상품 재고가 일정 수준 이하로 떨어질 때 실시간으로 알림을 보내는 시스템을 구축하는 것입니다.
+
+## [x] 태스크 1: Redis Pub/Sub 기본 인프라 설정
+- [x] Step 1.1: `RedisConfig`에 `MessageListenerAdapter` 및 `RedisMessageListenerContainer` 빈 설정
+- [x] Step 1.2: 메시지 발행(Publisher) 및 구독(Subscriber) 기본 컴포넌트 구현
+- [x] Step 1.3: **검증**: 기본 토픽(`inventory-alerts`)을 통한 간단한 문자열 메시지 송수신 테스트
+
+## [x] 태스크 2: 실시간 재고 부족 알림 비즈니스 로직 구현
+- [x] Step 2.1: `ProductService`의 재고 차감 로직에 알림 발행 트리거 추가 (재고 5개 미만 시 발행)
+- [x] Step 2.2: 알림 전용 DTO (`InventoryAlertDto`) 및 메시지 직렬화/역직렬화 처리
+- [x] Step 2.3: **검증**: 통합 테스트를 통해 재고 임계치 도달 시 Redis 토픽으로 메시지가 정상 발행되는지 확인
+
+## [x] 태스크 3: Web UI 통합 및 실시간 알림 연동
+- [x] Step 3.1: Server-Sent Events (SSE)를 활용하여 Redis의 구독 메시지를 프론트엔드로 전달하는 엔드포인트 구현
+- [x] Step 3.2: `product-list.mustache`에 실시간 알림 UI 추가 (Toast UI 등 활용)
+- [x] Step 3.3: **검증**: 브라우저에서 상품 구매 시 재고 부족 알림이 즉시 팝업으로 뜨는지 확인
+
+## [x] 태스크 4: Phase 5 최종 검증 및 리포트 작성
+- [x] Step 4.1: Pub/Sub 메시지 유실 방지 및 다중 구독자 환경 시뮬레이션 테스트
+- [x] Step 4.2: `.person/reports` 폴더에 작업 리포트 작성 및 Phase 5 완료 보고

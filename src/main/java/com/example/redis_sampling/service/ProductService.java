@@ -3,6 +3,7 @@ package com.example.redis_sampling.service;
 import com.example.redis_sampling.domain.Product;
 import com.example.redis_sampling.domain.ProductRepository;
 import com.example.redis_sampling.dto.CacheResponse;
+import com.example.redis_sampling.dto.InventoryAlertDto;
 import com.example.redis_sampling.dto.ProductDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final RedisPublisher redisPublisher; // Redis Publisher 주입
 
     private static final String PRODUCT_CACHE_KEY_PREFIX = "redis-sampling:product:";
     private static final String PRODUCT_HASH_KEY_PREFIX = "redis-sampling:product:hash:";
@@ -32,6 +34,8 @@ public class ProductService {
     private static final String PRODUCT_LIKES_KEY_PREFIX = "redis-sampling:product:likes:";
     private static final String DAILY_VISITORS_KEY_PREFIX = "redis-sampling:uv:";
     private static final String RANKING_KEY = "redis-sampling:ranking";
+
+    private static final long STOCK_THRESHOLD = 5; // 재고 알림 임계치
 
     /**
      * [Phase 4] 상품 조회수 증가 (ZINCRBY)
@@ -183,19 +187,35 @@ public class ProductService {
 
     /**
      * [Phase 2] 원자적 재고 차감 (HINCRBY)
+     * [Phase 5] 재고 부족 시 실시간 알림 발행 (Pub/Sub)
      */
     @Transactional
     public void decreaseStock(Long id, Long quantity) {
         String hashKey = PRODUCT_HASH_KEY_PREFIX + id;
 
+        // 1. Redis Hash 기반 원자적 차감 및 결과값 확인
+        Long remainingStock = null;
         if (Boolean.TRUE.equals(redisTemplate.hasKey(hashKey))) {
             log.info("Decreasing Redis Hash Field [stock] - Key: {}, Quantity: {}", hashKey, quantity);
-            redisTemplate.opsForHash().increment(hashKey, "stock", -quantity);
+            remainingStock = redisTemplate.opsForHash().increment(hashKey, "stock", -quantity);
         }
 
+        // 2. DB 동기화
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
         product.decreaseStock(quantity);
+        
+        // Redis 캐시가 없었거나 결과가 null인 경우 DB 값 사용
+        if (remainingStock == null) {
+            remainingStock = product.getStock();
+        }
+
+        // 3. [Phase 5] 재고 부족 알림 발행 트리거 (임계치 미만인 경우)
+        if (remainingStock < STOCK_THRESHOLD) {
+            log.warn("⚠️ Inventory Alert Triggered! - Product: {}, Stock: {}", product.getName(), remainingStock);
+            InventoryAlertDto alertDto = InventoryAlertDto.of(id, product.getName(), remainingStock);
+            redisPublisher.publishInventoryAlert(alertDto.getMessage());
+        }
 
         redisTemplate.delete(PRODUCT_CACHE_KEY_PREFIX + id);
     }

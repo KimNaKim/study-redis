@@ -28,9 +28,8 @@
 - [x] **UI**: 실시간 인기 상품 Top 5 리더보드 구현 및 자동 갱신(5초 간격) 연동
 - [x] 더미 데이터 확장을 통한 랭킹 변동 테스트 완료
 
-
-## Phase 5: 고급 기능 (Pub/Sub & Geospatial)
-- [ ] Redis Pub/Sub을 활용한 실시간 이벤트 알림 (예: 재고 부족 알림)
-- [ ] Geospatial(Geo) 데이터를 활용한 '근처 물류 센터/매장 찾기' 기능
-- [ ] Redis 트랜잭션 및 파이프라이닝(Pipelining) 성능 최적화
-- [ ] **UI**: 실시간 알림 팝업 및 위치 기반 정보 시각화
+## Phase 5: 고급 기능 (Pub/Sub & Optimization) (완료)
+- [x] Redis Pub/Sub을 활용한 실시간 이벤트 알림 (재고 부족 알림)
+- [x] Redis 트랜잭션 및 파이프라이닝(Pipelining) 성능 최적화 (이론 학습 및 구조 설계 포함)
+- [x] **UI**: 실시간 알림 팝업(Toast) 및 SSE(Server-Sent Events) 연동
+- [x] Phase 5 최종 결과 리포트 작성

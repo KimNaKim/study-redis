@@ -22,9 +22,16 @@
         .like-btn { cursor: pointer; transition: 0.2s; }
         .like-btn:hover { transform: scale(1.2); }
         .liked { color: #dc3545 !important; }
+        /* Phase 5: Notification Styles */
+        #notification-container { position: fixed; top: 20px; right: 20px; z-index: 9999; width: 350px; }
+        .alert-custom { border-radius: 10px; border: none; box-shadow: 0 5px 15px rgba(0,0,0,0.2); animation: slideIn 0.5s ease-out; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
 </head>
 <body class="bg-light">
+
+<!-- Phase 5: Notification Container -->
+<div id="notification-container"></div>
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
         <h2 class="fw-bold"><i class="bi bi-box-seam me-2 text-primary"></i>Redis Sampling Lab</h2>
@@ -355,6 +362,53 @@
             log(`Benchmark Complete!`, '#9b59b6');
         } catch (err) { log(`Error: ${err.message}`, '#e74c3c'); }
     }
+
+    /**
+     * [Phase 5] 실시간 알림 구독 (SSE)
+     */
+    function subscribeToNotifications() {
+        const eventSource = new EventSource('/api/notifications/subscribe');
+        
+        eventSource.addEventListener('INIT', (e) => {
+            log(`SSE Notification Service: ${e.data}`, '#9b59b6');
+        });
+
+        eventSource.addEventListener('inventory-alert', (e) => {
+            const message = e.data;
+            log(`Real-time Alert Received: ${message}`, '#e67e22');
+            showNotification(message);
+        });
+
+        eventSource.onerror = (err) => {
+            console.error('SSE connection failed:', err);
+            eventSource.close();
+        };
+    }
+
+    function showNotification(message) {
+        const container = document.getElementById('notification-container');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-warning alert-dismissible fade show alert-custom mb-2';
+        alertDiv.innerHTML = `
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <strong>Alert!</strong> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        container.appendChild(alertDiv);
+
+        // 5초 후 자동 삭제
+        setTimeout(() => {
+            alertDiv.classList.remove('show');
+            setTimeout(() => alertDiv.remove(), 500);
+        }, 5000);
+    }
+
+    // 페이지 로드 시 알림 구독 시작
+    window.onload = () => {
+        subscribeToNotifications();
+        // 5초마다 랭킹 자동 갱신
+        setInterval(updateRanking, 5000);
+    };
 </script>
 </body>
 </html>
